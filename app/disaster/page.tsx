@@ -1,16 +1,17 @@
 'use client';
 
 import PageSkeleton from '@/components/page-skeleton';
+import ListPagination from '@/components/list-pagination';
+import { usePaginatedList } from '@/hooks/use-paginated-list';
 import { useUrlState } from '@/hooks/use-url-state';
 import dynamic from 'next/dynamic';
-import React, { useEffect, useState, useCallback, Suspense } from 'react';
+import React, { useState, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { AlertTriangle, Plus } from 'lucide-react';
 import Navbar from '@/components/navbar';
 import SearchBar from '@/components/searchbar';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { publicApi } from '@/lib/api';
 import useAuth from '@/hooks/use-auth';
 import DisasterCard from '@/components/disaster/disaster-card';
 import { Disaster } from '@/components/disaster/types';
@@ -19,36 +20,12 @@ const AddDisasterDrawer = dynamic(() => import('@/components/disaster/add-disast
 const DisasterPageContent = () => {
   const router = useRouter();
   const { user } = useAuth();
-  const [disasters, setDisasters] = useState<Disaster[]>([]);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [urlSearch, setUrlSearch] = useUrlState('q');
-  const [searchTerm, setSearchTerm] = useState(urlSearch);
-
-  const fetchDisasters = useCallback(async (search?: string) => {
-    try {
-      setLoading(true);
-      const url = search?.trim()
-        ? `/disasters?search=${encodeURIComponent(search.trim())}`
-        : '/disasters';
-      const res = await publicApi.get(url);
-      const data = res.data?.data || res.data || [];
-      setDisasters(Array.isArray(data) ? data : []);
-    } catch {
-      setDisasters([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchDisasters(searchTerm);
-  }, [fetchDisasters]);
-
+  const [searchTerm, setUrlSearch] = useUrlState('q');
+  const { items: disasters, loading, error, page, totalPages, setPage, refresh: fetchDisasters } =
+    usePaginatedList<Disaster>('/disasters', { params: { searchTerm: searchTerm.trim() || undefined } });
   const handleSearchChange = (val: string) => {
-    setSearchTerm(val);
     setUrlSearch(val);
-    fetchDisasters(val);
   };
 
   const handleAddClick = () => {
@@ -88,12 +65,13 @@ const DisasterPageContent = () => {
             <SearchBar
               value={searchTerm}
               onChange={handleSearchChange}
-              onSubmit={() => fetchDisasters(searchTerm)}
+              onSubmit={() => fetchDisasters()}
               placeholder="Search disasters, location..."
             />
           </div>
         </div>
 
+        {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {[1, 2, 3, 4, 5, 6].map((idx) => (
@@ -132,12 +110,13 @@ const DisasterPageContent = () => {
             ))}
           </div>
         )}
+        <ListPagination page={page} totalPages={totalPages} onChange={setPage} loading={loading} />
       </main>
 
       <AddDisasterDrawer
         open={isDrawerOpen}
         onOpenChange={setIsDrawerOpen}
-        onSuccess={() => fetchDisasters(searchTerm)}
+        onSuccess={() => fetchDisasters()}
       />
     </div>
   );

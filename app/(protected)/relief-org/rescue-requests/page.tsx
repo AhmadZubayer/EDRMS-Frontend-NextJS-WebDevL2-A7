@@ -16,13 +16,22 @@ import { RescueRequest } from '@/components/rescue-requests/types';
 const RescueRequestDetailsDrawer = dynamic(() => import('@/components/rescue-requests/rescue-request-details-drawer'), { ssr: false });
 const AddRescueRequestDrawer = dynamic(() => import('@/components/rescue-requests/add-rescue-request-drawer'), { ssr: false });
 import DashboardFrame from '@/components/profile/dashboard-frame';
+import ListPagination from '@/components/list-pagination';
+import SearchBar from '@/components/searchbar';
+import { usePaginatedList } from '@/hooks/use-paginated-list';
 import { getApiErrorMessage } from '@/utils/api-error';
 
 const ReliefOrgRescueRequestsPage = () => {
   const { user } = useAuth();
 
   const [profile, setProfile] = useState<UserProfileData | null>(null);
-  const [myRescueRequests, setMyRescueRequests] = useState<RescueRequest[]>([]);
+  const [search, setSearch] = useState('');
+  const list = usePaginatedList<RescueRequest>('/rescue-requests/my', {
+    client: axiosSecure,
+    enabled: Boolean(user),
+    params: { searchTerm: search.trim() || undefined },
+  });
+  const { items: myRescueRequests, refresh: refreshList } = list;
   const [loading, setLoading] = useState(true);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [togglingSafety, setTogglingSafety] = useState(false);
@@ -33,10 +42,10 @@ const ReliefOrgRescueRequestsPage = () => {
   const [confirmTrashItem, setConfirmTrashItem] = useState<RescueRequest | null>(null);
 
   const fetchPageData = useCallback(async () => {
+    refreshList();
     try {
-      const [profileResult, rescueRequestsResult] = await Promise.allSettled([
-        axiosSecure.get('/users/profile'),
-        axiosSecure.get('/rescue-requests/my')
+      const [profileResult] = await Promise.allSettled([
+        axiosSecure.get('/users/profile')
       ]);
       if (profileResult.status === 'fulfilled') {
         const data = profileResult.value.data?.data || profileResult.value.data;
@@ -48,20 +57,10 @@ const ReliefOrgRescueRequestsPage = () => {
           type: 'error'
         });
       }
-      if (rescueRequestsResult.status === 'fulfilled') {
-        const data = rescueRequestsResult.value.data?.data || rescueRequestsResult.value.data;
-        setMyRescueRequests(Array.isArray(data) ? data : []);
-      } else {
-        toast.add({
-          id: 'rescue-requests-rescueRequests-error',
-          title: 'Failed to load rescue requests. Please try again.',
-          type: 'error'
-        });
-      }
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [refreshList]);
   useEffect(() => {
     if (user) {
       fetchPageData();
@@ -117,6 +116,9 @@ const ReliefOrgRescueRequestsPage = () => {
         onEdit={() => setIsEditOpen(true)}
         onToggleSafety={handleToggleSafety}
       >
+
+        <SearchBar value={search} onChange={setSearch} onSubmit={refreshList} placeholder="Search results..." />
+        {list.error && <p role="alert" className="text-sm text-destructive">{list.error}</p>}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
@@ -138,7 +140,7 @@ const ReliefOrgRescueRequestsPage = () => {
             </Button>
           </div>
 
-          {myRescueRequests.length === 0 ? (
+          {list.loading ? (<p role="status" className="py-6 text-sm text-muted-foreground">Loading results...</p>) : myRescueRequests.length === 0 ? (
             <div className="rounded-lg border border-dashed border-border p-4 text-center bg-card space-y-3">
               <LifeBuoy className="size-8 text-muted-foreground/60 mx-auto" />
               <p className="text-xs text-muted-foreground">
@@ -214,6 +216,7 @@ const ReliefOrgRescueRequestsPage = () => {
             </div>
           )}
         </div>
+        <ListPagination page={list.page} totalPages={list.totalPages} onChange={list.setPage} loading={list.loading} />
       </DashboardFrame>
       {profile && (
         <EditProfileDrawer

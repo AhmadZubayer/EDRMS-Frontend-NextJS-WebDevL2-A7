@@ -10,11 +10,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import MuiModal from '@/components/mui-modal';
 import { toast } from '@/components/ui/toast';
 import useAuth from '@/hooks/use-auth';
-import { axiosSecure, publicApi } from '@/lib/api';
+import { axiosSecure } from '@/lib/api';
 import EditProfileDrawer, { UserProfileData } from '@/components/profile/edit-profile-drawer';
 import { CommunityPost } from '@/components/community/types';
 const AddCommunityPostDrawer = dynamic(() => import('@/components/community/add-community-post-drawer'), { ssr: false });
 import DashboardFrame from '@/components/profile/dashboard-frame';
+import ListPagination from '@/components/list-pagination';
+import SearchBar from '@/components/searchbar';
+import { usePaginatedList } from '@/hooks/use-paginated-list';
 import { getApiErrorMessage } from '@/utils/api-error';
 const formatTrashDate = (dateStr?: string) => {
   if (!dateStr) return 'N/A';
@@ -33,7 +36,13 @@ const ReliefOrgCommunityPostsPage = () => {
   const { user } = useAuth();
   const router = useRouter();
   const [profile, setProfile] = useState<UserProfileData | null>(null);
-  const [myPosts, setMyPosts] = useState<CommunityPost[]>([]);
+  const [search, setSearch] = useState('');
+  const list = usePaginatedList<CommunityPost>('/community-posts', {
+    client: axiosSecure,
+    enabled: Boolean(user),
+    params: { searchTerm: search.trim() || undefined, authorId: user?.id },
+  });
+  const { items: myPosts, refresh: refreshList } = list;
   const [loading, setLoading] = useState(true);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [togglingSafety, setTogglingSafety] = useState(false);
@@ -42,10 +51,10 @@ const ReliefOrgCommunityPostsPage = () => {
   const [confirmTrashItem, setConfirmTrashItem] = useState<CommunityPost | null>(null);
 
   const fetchPageData = useCallback(async () => {
+    refreshList();
     try {
-      const [profileResult, postsResult] = await Promise.allSettled([
-        axiosSecure.get('/users/profile'),
-        publicApi.get('/community-posts')
+      const [profileResult] = await Promise.allSettled([
+        axiosSecure.get('/users/profile')
       ]);
       if (profileResult.status === 'fulfilled') {
         const data = profileResult.value.data?.data || profileResult.value.data;
@@ -57,21 +66,10 @@ const ReliefOrgCommunityPostsPage = () => {
           type: 'error'
         });
       }
-      if (postsResult.status === 'fulfilled') {
-        const data = postsResult.value.data?.data || postsResult.value.data;
-        const posts = Array.isArray(data) ? data : [];
-        setMyPosts(posts.filter((post: CommunityPost & { author_id?: string; userId?: string }) => post.author_id === user?.id || post.userId === user?.id || post.postedBy?.name === user?.name));
-      } else {
-        toast.add({
-          id: 'posts-posts-error',
-          title: 'Failed to load posts. Please try again.',
-          type: 'error'
-        });
-      }
     } finally {
       setLoading(false);
     }
-  }, [user?.id, user?.name]);
+  }, [refreshList]);
   useEffect(() => {
     if (user) {
       fetchPageData();
@@ -127,6 +125,9 @@ const ReliefOrgCommunityPostsPage = () => {
         onEdit={() => setIsEditOpen(true)}
         onToggleSafety={handleToggleSafety}
       >
+
+        <SearchBar value={search} onChange={setSearch} onSubmit={refreshList} placeholder="Search results..." />
+        {list.error && <p role="alert" className="text-sm text-destructive">{list.error}</p>}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
@@ -145,7 +146,7 @@ const ReliefOrgCommunityPostsPage = () => {
             </Button>
           </div>
 
-          {myPosts.length === 0 ? (
+          {list.loading ? (<p role="status" className="py-6 text-sm text-muted-foreground">Loading results...</p>) : myPosts.length === 0 ? (
             <div className="rounded-lg border border-dashed border-border p-4 text-center bg-card space-y-3">
               <MessageSquare className="size-8 text-muted-foreground/60 mx-auto" />
               <p className="text-xs text-muted-foreground">
@@ -207,6 +208,7 @@ const ReliefOrgCommunityPostsPage = () => {
             </div>
           )}
         </div>
+        <ListPagination page={list.page} totalPages={list.totalPages} onChange={list.setPage} loading={list.loading} />
       </DashboardFrame>
       {profile && (
         <EditProfileDrawer

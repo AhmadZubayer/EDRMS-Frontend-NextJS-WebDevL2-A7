@@ -36,6 +36,10 @@ import MuiDrawer from '@/components/mui-drawer';
 import MuiTabs from '@/components/mui-tabs';
 import MuiModal from '@/components/mui-modal';
 import ModernButton from '@/components/modernBtn';
+import ListPagination from '@/components/list-pagination';
+import SearchBar from '@/components/searchbar';
+import { usePaginatedList } from '@/hooks/use-paginated-list';
+import { getApiErrorMessage } from '@/utils/api-error';
 import { axiosSecure } from '@/lib/api';
 import {
   DonationCampaign,
@@ -63,10 +67,26 @@ const CampaignProgressDrawer = ({
   campaign,
   onCampaignUpdated,
 }: CampaignProgressDrawerProps) => {
-
+  const campaignId = campaign?.id;
   const [transactions, setTransactions] = useState<DonationTransaction[]>([]);
-  const [applications, setApplications] = useState<DonationApplication[]>([]);
-  const [loadingData, setLoadingData] = useState(false);
+  const [applicationSearch, setApplicationSearch] = useState('');
+  const applicationList = usePaginatedList<DonationApplication>(`/donations/campaigns/${campaign?.id}/applications`, {
+    client: axiosSecure,
+    enabled: open && Boolean(campaign?.id),
+    params: { searchTerm: applicationSearch.trim() || undefined },
+  });
+  const { items: applications, refresh: refreshApplications } = applicationList;
+  const [transactionSearch, setTransactionSearch] = useState('');
+  const [transactionPage, setTransactionPage] = useState(1);
+  const [totalApproved, setTotalApproved] = useState(0);
+  const filteredTransactions = transactions.filter((transaction) =>
+    [transaction.user_name, transaction.user_email, transaction.transaction_id, transaction.transaction_type]
+      .some((value) => value?.toLowerCase().includes(transactionSearch.trim().toLowerCase())),
+  );
+  const transactionPages = Math.ceil(filteredTransactions.length / 10);
+  const currentTransactionPage = Math.min(transactionPage, Math.max(1, transactionPages));
+  const visibleTransactions = filteredTransactions.slice((currentTransactionPage - 1) * 10, currentTransactionPage * 10);
+  const [loadingData, setLoadingData] = useState(true);
 
   const [selectedApplication, setSelectedApplication] =
     useState<DonationApplication | null>(null);
@@ -78,24 +98,23 @@ const CampaignProgressDrawer = ({
     process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
 
   const loadData = useCallback(async () => {
-    if (!campaign?.id) return;
+    if (!campaignId) return;
     try {
-      setLoadingData(true);
-      const [txRes, appRes] = await Promise.all([
-        axiosSecure.get(`/donations/campaigns/${campaign.id}/transactions`),
-        axiosSecure.get(`/donations/campaigns/${campaign.id}/applications`),
+      const [txRes, campaignRes] = await Promise.all([
+        axiosSecure.get(`/donations/campaigns/${campaignId}/transactions`),
+        axiosSecure.get(`/donations/campaigns/${campaignId}`),
       ]);
       const txData = txRes.data?.data || txRes.data || [];
-      const appData = appRes.data?.data || appRes.data || [];
+      const campaignData = campaignRes.data?.data || campaignRes.data;
       setTransactions(Array.isArray(txData) ? txData : []);
-      setApplications(Array.isArray(appData) ? appData : []);
+      setTotalApproved(Number(campaignData?.totalPaidOut ?? 0));
+      refreshApplications();
     } catch {
       setTransactions([]);
-      setApplications([]);
     } finally {
       setLoadingData(false);
     }
-  }, [campaign?.id, axiosSecure]);
+  }, [campaignId, refreshApplications]);
 
   useEffect(() => {
     if (open && campaign?.id) {
@@ -108,12 +127,6 @@ const CampaignProgressDrawer = ({
   const remaining = Math.max(0, target - collected);
   const donorsCount = campaign?.donors_count || 0;
 
-  const totalApproved = applications.reduce((sum, app) => {
-    if (String(app.status || '').toLowerCase() === 'approved') {
-      return sum + (Number(app.approved_amount) || 0);
-    }
-    return sum;
-  }, 0);
 
   const availableAmount = Math.max(0, collected - totalApproved);
 
@@ -165,9 +178,9 @@ const CampaignProgressDrawer = ({
       handleCloseApplicationModal();
       await loadData();
       onCampaignUpdated?.();
-    } catch (err: any) {
+    } catch (err: unknown) {
       setAidAmountError(
-        err?.response?.data?.message || 'Failed to process aid approval. Please try again.'
+        getApiErrorMessage(err, 'Failed to process aid approval. Please try again.')
       );
     } finally {
       setSubmittingAid(false);
@@ -268,6 +281,11 @@ const CampaignProgressDrawer = ({
           </div>
 
           <div className="space-y-3">
+            <SearchBar
+              value={transactionSearch}
+              onChange={(value) => { setTransactionSearch(value); setTransactionPage(1); }}
+              placeholder="Search transactions..."
+            />
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-medium text-foreground">
                 Donation Transaction History
@@ -298,7 +316,7 @@ const CampaignProgressDrawer = ({
                         Loading transactions...
                       </TableCell>
                     </TableRow>
-                  ) : transactions.length === 0 ? (
+                  ) : filteredTransactions.length === 0 ? (
                     <TableRow>
                       <TableCell
                         colSpan={5}
@@ -308,7 +326,7 @@ const CampaignProgressDrawer = ({
                       </TableCell>
                     </TableRow>
                   ) : (
-                    transactions.map((tx) => (
+                    visibleTransactions.map((tx) => (
                       <TableRow key={tx.id} >
                         <TableCell>
                           <div className="font-medium text-foreground">
@@ -353,6 +371,7 @@ const CampaignProgressDrawer = ({
                   )}
                 </TableBody>
               </Table>
+              <ListPagination page={currentTransactionPage} totalPages={transactionPages} onChange={setTransactionPage} loading={loadingData} />
             </div>
           </div>
         </div>
@@ -364,13 +383,15 @@ const CampaignProgressDrawer = ({
         <div className="space-y-4 pb-6">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-medium text-foreground">
-              Applications ({applications.length})
+              Applications ({applicationList.total})
             </h3>
             <span className="text-xs text-muted-foreground">
               Pending review and disbursement
             </span>
           </div>
 
+          <SearchBar value={applicationSearch} onChange={setApplicationSearch} onSubmit={refreshApplications} placeholder="Search applications..." />
+          {applicationList.error && <p role="alert" className="text-sm text-destructive">{applicationList.error}</p>}
           <div className="grid grid-cols-2 gap-3">
             <div className="p-3.5 rounded-lg border border-border bg-card">
               <span className="text-xs uppercase font-medium text-muted-foreground block">
@@ -401,7 +422,7 @@ const CampaignProgressDrawer = ({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {loadingData ? (
+                {applicationList.loading ? (
                   <TableRow>
                     <TableCell
                       colSpan={4}
@@ -456,6 +477,7 @@ const CampaignProgressDrawer = ({
                 )}
               </TableBody>
             </Table>
+            <ListPagination page={applicationList.page} totalPages={applicationList.totalPages} onChange={applicationList.setPage} loading={applicationList.loading} />
           </div>
         </div>
       ),

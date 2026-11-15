@@ -1,16 +1,17 @@
 'use client';
 
 import PageSkeleton from '@/components/page-skeleton';
+import ListPagination from '@/components/list-pagination';
+import { usePaginatedList } from '@/hooks/use-paginated-list';
 import { useUrlState } from '@/hooks/use-url-state';
 import dynamic from 'next/dynamic';
-import React, { useEffect, useState, useCallback, Suspense } from 'react';
+import React, { useState, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { AlertCircle, Plus } from 'lucide-react';
 import Navbar from '@/components/navbar';
 import SearchBar from '@/components/searchbar';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { publicApi } from '@/lib/api';
 import useAuth from '@/hooks/use-auth';
 import RescueRequestCard from '@/components/rescue-requests/rescue-request-card';
 import { RescueRequest } from '@/components/rescue-requests/types';
@@ -20,38 +21,14 @@ const AddRescueRequestDrawer = dynamic(() => import('@/components/rescue-request
 const RescueRequestsPageContent = () => {
   const router = useRouter();
   const { user } = useAuth();
-  const [requests, setRequests] = useState<RescueRequest[]>([]);
   const [selectedRequest, setSelectedRequest] = useState<RescueRequest | null>(null);
   const [editingRequest, setEditingRequest] = useState<RescueRequest | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [urlSearch, setUrlSearch] = useUrlState('q');
-  const [searchTerm, setSearchTerm] = useState(urlSearch);
-
-  const fetchRescueRequests = useCallback(async (search?: string) => {
-    try {
-      setLoading(true);
-      const url = search?.trim()
-        ? `/rescue-requests?search=${encodeURIComponent(search.trim())}`
-        : '/rescue-requests';
-      const res = await publicApi.get(url);
-      const data = res.data?.data || res.data || [];
-      setRequests(Array.isArray(data) ? data : []);
-    } catch {
-      setRequests([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchRescueRequests(searchTerm);
-  }, [fetchRescueRequests]);
-
+  const [searchTerm, setUrlSearch] = useUrlState('q');
+  const { items: requests, loading, error, page, totalPages, setPage, refresh: fetchRescueRequests } =
+    usePaginatedList<RescueRequest>('/rescue-requests', { params: { searchTerm: searchTerm.trim() || undefined } });
   const handleSearchChange = (val: string) => {
-    setSearchTerm(val);
     setUrlSearch(val);
-    fetchRescueRequests(val);
   };
 
   const handleAddClick = () => {
@@ -96,12 +73,13 @@ const RescueRequestsPageContent = () => {
             <SearchBar
               value={searchTerm}
               onChange={handleSearchChange}
-              onSubmit={() => fetchRescueRequests(searchTerm)}
+              onSubmit={() => fetchRescueRequests()}
               placeholder="Search by address, description..."
             />
           </div>
         </div>
 
+        {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {[1, 2, 3, 4, 5, 6].map((idx) => (
@@ -143,6 +121,7 @@ const RescueRequestsPageContent = () => {
             ))}
           </div>
         )}
+        <ListPagination page={page} totalPages={totalPages} onChange={setPage} loading={loading} />
       </main>
 
       <RescueRequestDetailsDrawer
@@ -152,7 +131,7 @@ const RescueRequestsPageContent = () => {
           if (!open) setSelectedRequest(null);
         }}
         onEdit={handleEdit}
-        onRefresh={() => fetchRescueRequests(searchTerm)}
+        onRefresh={() => fetchRescueRequests()}
       />
 
       <AddRescueRequestDrawer
@@ -162,7 +141,7 @@ const RescueRequestsPageContent = () => {
           if (!open) setEditingRequest(null);
         }}
         onSuccess={() => {
-          fetchRescueRequests(searchTerm);
+          fetchRescueRequests();
           setEditingRequest(null);
         }}
         editRequest={editingRequest}

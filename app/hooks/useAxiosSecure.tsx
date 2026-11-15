@@ -1,28 +1,10 @@
 'use client';
 
-import axios from 'axios';
+import { axiosSecure } from '@/lib/api';
+export { axiosSecure };
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from './useAuth';
-
-export const axiosSecure = axios.create({
-  baseURL: '/api',
-  withCredentials: true,
-  timeout: 15000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
-axiosSecure.interceptors.request.use((config) => {
-  if (typeof window !== 'undefined') {
-    const token = localStorage.getItem('access_token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-  }
-  return config;
-});
 
 const useAxiosSecure = () => {
   const { user, logOut } = useAuth();

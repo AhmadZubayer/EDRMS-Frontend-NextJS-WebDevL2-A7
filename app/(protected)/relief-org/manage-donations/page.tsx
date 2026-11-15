@@ -8,12 +8,15 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from '@/components/ui/toast';
 import useAuth from '@/hooks/use-auth';
-import { axiosSecure, publicApi } from '@/lib/api';
+import { axiosSecure } from '@/lib/api';
 import EditProfileDrawer, { UserProfileData } from '@/components/profile/edit-profile-drawer';
 import { DonationCampaign } from '@/components/donations/types';
 const AddDonationDrawer = dynamic(() => import('@/components/donations/add-donation-drawer'), { ssr: false });
 const CampaignProgressDrawer = dynamic(() => import('@/components/donations/campaign-progress-drawer'), { ssr: false });
 import DashboardFrame from '@/components/profile/dashboard-frame';
+import ListPagination from '@/components/list-pagination';
+import SearchBar from '@/components/searchbar';
+import { usePaginatedList } from '@/hooks/use-paginated-list';
 import { getApiErrorMessage } from '@/utils/api-error';
 
 const ReliefOrgManageDonationsPage = () => {
@@ -23,17 +26,23 @@ const ReliefOrgManageDonationsPage = () => {
   const [loading, setLoading] = useState(true);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [togglingSafety, setTogglingSafety] = useState(false);
-  const [campaigns, setCampaigns] = useState<DonationCampaign[]>([]);
+  const [search, setSearch] = useState('');
+  const list = usePaginatedList<DonationCampaign>('/donations/campaigns', {
+    client: axiosSecure,
+    enabled: Boolean(user),
+    params: { searchTerm: search.trim() || undefined },
+  });
+  const { items: campaigns, refresh: refreshList } = list;
   const [isDonationDrawerOpen, setIsDonationDrawerOpen] = useState(false);
   const [editingCampaign, setEditingCampaign] = useState<DonationCampaign | null>(null);
   const [selectedProgressCampaign, setSelectedProgressCampaign] = useState<DonationCampaign | null>(null);
   const [isProgressDrawerOpen, setIsProgressDrawerOpen] = useState(false);
 
   const fetchPageData = useCallback(async () => {
+    refreshList();
     try {
-      const [profileResult, campaignsResult] = await Promise.allSettled([
-        axiosSecure.get('/users/profile'),
-        publicApi.get('/donations/campaigns')
+      const [profileResult] = await Promise.allSettled([
+        axiosSecure.get('/users/profile')
       ]);
       if (profileResult.status === 'fulfilled') {
         const data = profileResult.value.data?.data || profileResult.value.data;
@@ -45,20 +54,10 @@ const ReliefOrgManageDonationsPage = () => {
           type: 'error'
         });
       }
-      if (campaignsResult.status === 'fulfilled') {
-        const data = campaignsResult.value.data?.data || campaignsResult.value.data;
-        setCampaigns(Array.isArray(data) ? data : []);
-      } else {
-        toast.add({
-          id: 'manage-donations-campaigns-error',
-          title: 'Failed to load campaigns. Please try again.',
-          type: 'error'
-        });
-      }
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [refreshList]);
   useEffect(() => {
     if (user) {
       fetchPageData();
@@ -88,6 +87,8 @@ const ReliefOrgManageDonationsPage = () => {
         onEdit={() => setIsEditOpen(true)}
         onToggleSafety={handleToggleSafety}
       >
+        <SearchBar value={search} onChange={setSearch} onSubmit={refreshList} placeholder="Search results..." />
+        {list.error && <p role="alert" className="text-sm text-destructive">{list.error}</p>}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
@@ -109,7 +110,7 @@ const ReliefOrgManageDonationsPage = () => {
             </Button>
           </div>
 
-          {campaigns.length === 0 ? (
+          {list.loading ? (<p role="status" className="py-6 text-sm text-muted-foreground">Loading results...</p>) : campaigns.length === 0 ? (
             <div className="rounded-lg border border-dashed border-border p-4 text-center bg-card space-y-3">
               <HeartHandshake className="size-8 text-muted-foreground/60 mx-auto" />
               <p className="text-xs text-muted-foreground">No donation campaigns created.</p>
@@ -168,6 +169,7 @@ const ReliefOrgManageDonationsPage = () => {
             </div>
           )}
         </div>
+        <ListPagination page={list.page} totalPages={list.totalPages} onChange={list.setPage} loading={list.loading} />
       </DashboardFrame>
       {profile && (
         <EditProfileDrawer
@@ -184,6 +186,7 @@ const ReliefOrgManageDonationsPage = () => {
         editCampaign={editingCampaign}
       />
       <CampaignProgressDrawer
+        key={selectedProgressCampaign?.id}
         campaign={selectedProgressCampaign}
         open={isProgressDrawerOpen}
         onClose={() => setIsProgressDrawerOpen(false)}

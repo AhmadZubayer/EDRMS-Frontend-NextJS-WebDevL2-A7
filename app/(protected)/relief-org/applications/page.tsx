@@ -9,6 +9,9 @@ import useAuth from '@/hooks/use-auth';
 import { axiosSecure } from '@/lib/api';
 import EditProfileDrawer, { UserProfileData } from '@/components/profile/edit-profile-drawer';
 import DashboardFrame from '@/components/profile/dashboard-frame';
+import ListPagination from '@/components/list-pagination';
+import SearchBar from '@/components/searchbar';
+import { usePaginatedList } from '@/hooks/use-paginated-list';
 import { getApiErrorMessage } from '@/utils/api-error';
 interface UserApplication {
   id: string;
@@ -45,16 +48,22 @@ const ReliefOrgApplicationsPage = () => {
   const { user } = useAuth();
 
   const [profile, setProfile] = useState<UserProfileData | null>(null);
-  const [myApplications, setMyApplications] = useState<UserApplication[]>([]);
+  const [search, setSearch] = useState('');
+  const list = usePaginatedList<UserApplication>('/donations/my-applications', {
+    client: axiosSecure,
+    enabled: Boolean(user),
+    params: { searchTerm: search.trim() || undefined },
+  });
+  const { items: myApplications, refresh: refreshList } = list;
   const [loading, setLoading] = useState(true);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [togglingSafety, setTogglingSafety] = useState(false);
 
   const fetchPageData = useCallback(async () => {
+    refreshList();
     try {
-      const [profileResult, applicationsResult] = await Promise.allSettled([
-        axiosSecure.get('/users/profile'),
-        axiosSecure.get('/donations/my-applications')
+      const [profileResult] = await Promise.allSettled([
+        axiosSecure.get('/users/profile')
       ]);
       if (profileResult.status === 'fulfilled') {
         const data = profileResult.value.data?.data || profileResult.value.data;
@@ -66,20 +75,10 @@ const ReliefOrgApplicationsPage = () => {
           type: 'error'
         });
       }
-      if (applicationsResult.status === 'fulfilled') {
-        const data = applicationsResult.value.data?.data || applicationsResult.value.data;
-        setMyApplications(Array.isArray(data) ? data : []);
-      } else {
-        toast.add({
-          id: 'applications-applications-error',
-          title: 'Failed to load applications. Please try again.',
-          type: 'error'
-        });
-      }
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [refreshList]);
   useEffect(() => {
     if (user) {
       fetchPageData();
@@ -109,6 +108,9 @@ const ReliefOrgApplicationsPage = () => {
         onEdit={() => setIsEditOpen(true)}
         onToggleSafety={handleToggleSafety}
       >
+
+        <SearchBar value={search} onChange={setSearch} onSubmit={refreshList} placeholder="Search results..." />
+        {list.error && <p role="alert" className="text-sm text-destructive">{list.error}</p>}
         <div className="space-y-4">
           <div>
             <h3 className="text-sm font-medium">Your Financial Aid Applications</h3>
@@ -117,7 +119,7 @@ const ReliefOrgApplicationsPage = () => {
             </p>
           </div>
 
-          {myApplications.length === 0 ? (
+          {list.loading ? (<p role="status" className="py-6 text-sm text-muted-foreground">Loading results...</p>) : myApplications.length === 0 ? (
             <div className="rounded-lg border border-dashed border-border p-4 text-center bg-card space-y-3">
               <FileText className="size-8 text-muted-foreground/60 mx-auto" />
               <p className="text-xs text-muted-foreground">
@@ -155,6 +157,7 @@ const ReliefOrgApplicationsPage = () => {
             </div>
           )}
         </div>
+        <ListPagination page={list.page} totalPages={list.totalPages} onChange={list.setPage} loading={list.loading} />
       </DashboardFrame>
       {profile && (
         <EditProfileDrawer

@@ -5,7 +5,7 @@ import { OrganizationOpportunity } from './types';
 
 interface OpportunityCardProps {
   opportunity: OrganizationOpportunity;
-  applicationStatus?: 'pending' | 'approved' | 'rejected';
+  applicationStatus?: string | null;
   canApply: boolean;
   joining: boolean;
   onJoin: () => void;
@@ -18,6 +18,7 @@ const OpportunityCard = ({
   joining,
   onJoin,
 }: OpportunityCardProps) => {
+  applicationStatus = applicationStatus?.toLowerCase();
   const statusLabel =
     applicationStatus === 'approved'
       ? 'Member'
@@ -81,7 +82,7 @@ const OpportunityCard = ({
             !!applicationStatus ||
             joining ||
             !canApply ||
-            opportunity.status !== 'open'
+            opportunity.status.toLowerCase() !== 'open'
           }
           className="w-full"
         >
@@ -91,7 +92,7 @@ const OpportunityCard = ({
               ? statusLabel
               : !canApply
                 ? 'Verification required'
-                : opportunity.status !== 'open'
+                : opportunity.status.toLowerCase() !== 'open'
                   ? 'Applications closed'
                   : 'Apply to group'}
         </Button>

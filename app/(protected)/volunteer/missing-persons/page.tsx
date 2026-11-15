@@ -16,13 +16,22 @@ import { MissingPerson } from '@/components/missing-persons/missing-person-dialo
 const MissingPersonDetailsDrawer = dynamic(() => import('@/components/missing-persons/missing-person-details-drawer'), { ssr: false });
 const AddMissingPersonDrawer = dynamic(() => import('@/components/missing-persons/add-missing-person-drawer'), { ssr: false });
 import DashboardFrame from '@/components/profile/dashboard-frame';
+import ListPagination from '@/components/list-pagination';
+import SearchBar from '@/components/searchbar';
+import { usePaginatedList } from '@/hooks/use-paginated-list';
 import { getApiErrorMessage } from '@/utils/api-error';
 
 const VolunteerMissingPersonsPage = () => {
   const { user } = useAuth();
 
   const [profile, setProfile] = useState<UserProfileData | null>(null);
-  const [myMissingPersons, setMyMissingPersons] = useState<MissingPerson[]>([]);
+  const [search, setSearch] = useState('');
+  const list = usePaginatedList<MissingPerson>('/missing-persons/my', {
+    client: axiosSecure,
+    enabled: Boolean(user),
+    params: { searchTerm: search.trim() || undefined },
+  });
+  const { items: myMissingPersons, refresh: refreshList } = list;
   const [loading, setLoading] = useState(true);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [togglingSafety, setTogglingSafety] = useState(false);
@@ -33,10 +42,10 @@ const VolunteerMissingPersonsPage = () => {
   const [confirmTrashItem, setConfirmTrashItem] = useState<MissingPerson | null>(null);
 
   const fetchPageData = useCallback(async () => {
+    refreshList();
     try {
-      const [profileResult, missingPersonsResult] = await Promise.allSettled([
-        axiosSecure.get('/users/profile'),
-        axiosSecure.get('/missing-persons/my')
+      const [profileResult] = await Promise.allSettled([
+        axiosSecure.get('/users/profile')
       ]);
       if (profileResult.status === 'fulfilled') {
         const data = profileResult.value.data?.data || profileResult.value.data;
@@ -48,20 +57,10 @@ const VolunteerMissingPersonsPage = () => {
           type: 'error'
         });
       }
-      if (missingPersonsResult.status === 'fulfilled') {
-        const data = missingPersonsResult.value.data?.data || missingPersonsResult.value.data;
-        setMyMissingPersons(Array.isArray(data) ? data : []);
-      } else {
-        toast.add({
-          id: 'missing-persons-missingPersons-error',
-          title: 'Failed to load missing-person reports. Please try again.',
-          type: 'error'
-        });
-      }
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [refreshList]);
   useEffect(() => {
     if (user) {
       fetchPageData();
@@ -117,6 +116,9 @@ const VolunteerMissingPersonsPage = () => {
         onEdit={() => setIsEditOpen(true)}
         onToggleSafety={handleToggleSafety}
       >
+
+        <SearchBar value={search} onChange={setSearch} onSubmit={refreshList} placeholder="Search results..." />
+        {list.error && <p role="alert" className="text-sm text-destructive">{list.error}</p>}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
@@ -138,7 +140,7 @@ const VolunteerMissingPersonsPage = () => {
             </Button>
           </div>
 
-          {myMissingPersons.length === 0 ? (
+          {list.loading ? (<p role="status" className="py-6 text-sm text-muted-foreground">Loading results...</p>) : myMissingPersons.length === 0 ? (
             <div className="rounded-lg border border-dashed border-border p-4 text-center bg-card space-y-3">
               <User className="size-8 text-muted-foreground/60 mx-auto" />
               <p className="text-xs text-muted-foreground">
@@ -210,6 +212,7 @@ const VolunteerMissingPersonsPage = () => {
             </div>
           )}
         </div>
+        <ListPagination page={list.page} totalPages={list.totalPages} onChange={list.setPage} loading={list.loading} />
       </DashboardFrame>
       {profile && (
         <EditProfileDrawer

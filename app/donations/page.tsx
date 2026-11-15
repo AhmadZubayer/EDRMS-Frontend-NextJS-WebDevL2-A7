@@ -1,8 +1,10 @@
 'use client';
 
+import ListPagination from '@/components/list-pagination';
+import { usePaginatedList } from '@/hooks/use-paginated-list';
 import { useUrlState } from '@/hooks/use-url-state';
 import dynamic from 'next/dynamic';
-import React, { useEffect, useState, useCallback, Suspense } from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { HeartHandshake, Plus } from 'lucide-react';
 import Navbar from '@/components/navbar';
@@ -26,36 +28,12 @@ const DonationsContent = () => {
   const sessionId = searchParams?.get('session_id');
   const txId = searchParams?.get('tx_id');
 
-  const [campaigns, setCampaigns] = useState<DonationCampaign[]>([]);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [urlSearch, setUrlSearch] = useUrlState('q');
-  const [searchTerm, setSearchTerm] = useState(urlSearch);
-
-  const fetchCampaigns = useCallback(async (search?: string) => {
-    try {
-      setLoading(true);
-      const url = search?.trim()
-        ? `/donations/campaigns?search=${encodeURIComponent(search.trim())}`
-        : '/donations/campaigns';
-      const res = await publicApi.get(url);
-      const data = res.data?.data || res.data || [];
-      setCampaigns(Array.isArray(data) ? data : []);
-    } catch {
-      setCampaigns([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchCampaigns(searchTerm);
-  }, [fetchCampaigns]);
-
+  const [searchTerm, setUrlSearch] = useUrlState('q');
+  const { items: campaigns, loading, error, page, totalPages, setPage, refresh: fetchCampaigns } =
+    usePaginatedList<DonationCampaign>('/donations/campaigns', { params: { searchTerm: searchTerm.trim() || undefined } });
   const handleSearchChange = (val: string) => {
-    setSearchTerm(val);
     setUrlSearch(val);
-    fetchCampaigns(val);
   };
 
   const hasVerifiedRef = React.useRef(false);
@@ -100,7 +78,7 @@ const DonationsContent = () => {
           url.searchParams.delete('payment');
           url.searchParams.delete('session_id');
           url.searchParams.delete('tx_id');
-          window.history.replaceState({}, '', url.pathname);
+          window.history.replaceState({}, '', url.pathname + url.search);
         } catch {
         }
       };
@@ -142,12 +120,13 @@ const DonationsContent = () => {
             <SearchBar
               value={searchTerm}
               onChange={handleSearchChange}
-              onSubmit={() => fetchCampaigns(searchTerm)}
+              onSubmit={() => fetchCampaigns()}
               placeholder="Search campaigns, relief..."
             />
           </div>
         </div>
 
+        {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {[1, 2, 3, 4, 5, 6].map((idx) => (
@@ -187,12 +166,13 @@ const DonationsContent = () => {
             ))}
           </div>
         )}
+        <ListPagination page={page} totalPages={totalPages} onChange={setPage} loading={loading} />
       </main>
 
       <AddDonationDrawer
         open={isDrawerOpen}
         onOpenChange={setIsDrawerOpen}
-        onSuccess={() => fetchCampaigns(searchTerm)}
+        onSuccess={() => fetchCampaigns()}
       />
     </div>
   );

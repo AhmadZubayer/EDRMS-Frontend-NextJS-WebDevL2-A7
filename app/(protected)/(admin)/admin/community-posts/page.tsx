@@ -1,11 +1,9 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import {
   MessageSquare,
   Filter,
-  ChevronLeft,
-  ChevronRight,
   Trash2,
   RotateCcw,
   CheckCircle2,
@@ -23,6 +21,9 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import ListPagination from '@/components/list-pagination';
+import SearchBar from '@/components/searchbar';
+import { usePaginatedList } from '@/hooks/use-paginated-list';
 import useAxiosSecure from '@/app/hooks/useAxiosSecure';
 
 interface CommunityPostRecord {
@@ -37,13 +38,9 @@ interface CommunityPostRecord {
 
 export default function AdminCommunityPostsPage() {
   const axiosSecure = useAxiosSecure();
-  const [posts, setPosts] = useState<CommunityPostRecord[]>([]);
-  const [loading, setLoading] = useState(true);
+
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [includeDeleted, setIncludeDeleted] = useState<boolean>(false);
-  const [page, setPage] = useState<number>(1);
-  const [totalPages, setTotalPages] = useState<number>(1);
-  const [total, setTotal] = useState<number>(0);
 
   // Moderation Modal
   const [selectedPost, setSelectedPost] = useState<CommunityPostRecord | null>(null);
@@ -51,39 +48,12 @@ export default function AdminCommunityPostsPage() {
   const [updating, setUpdating] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  const fetchPosts = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params: Record<string, any> = {
-        page,
-        limit: 10,
-        includeDeleted,
-      };
-      if (statusFilter !== 'all') {
-        params.status = statusFilter;
-      }
-      const res = await axiosSecure.get('/admin/community-posts', { params });
-      const responseData = res.data?.data || res.data;
-
-      if (responseData?.data) {
-        setPosts(responseData.data);
-        setTotalPages(responseData.meta?.totalPages || 1);
-        setTotal(responseData.meta?.total || responseData.data.length);
-      } else if (Array.isArray(responseData)) {
-        setPosts(responseData);
-        setTotalPages(1);
-        setTotal(responseData.length);
-      }
-    } catch (error) {
-      console.error('Failed to fetch community posts:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [axiosSecure, page, statusFilter, includeDeleted]);
-
-  useEffect(() => {
-    fetchPosts();
-  }, [fetchPosts]);
+  const [search, setSearch] = useState('');
+  const list = usePaginatedList<CommunityPostRecord>('/admin/community-posts', {
+    client: axiosSecure,
+    params: { searchTerm: search.trim() || undefined, status: statusFilter === 'all' ? undefined : statusFilter.toUpperCase(), includeDeleted: String(includeDeleted) },
+  });
+  const { items: posts, loading, page, totalPages, total, setPage, refresh: fetchPosts } = list;
 
   const handleModerate = async () => {
     if (!selectedPost || !newStatus) return;
@@ -182,8 +152,10 @@ export default function AdminCommunityPostsPage() {
         </div>
       )}
 
+      {list.error && <p role="alert" className="text-sm text-destructive">{list.error}</p>}
       <Card className="border-border/60">
         <CardHeader className="p-4 sm:p-6 pb-2">
+          <SearchBar value={search} onChange={setSearch} onSubmit={list.refresh} placeholder="Search results..." />
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-2">
               <Filter className="size-4 text-muted-foreground" />
@@ -308,30 +280,9 @@ export default function AdminCommunityPostsPage() {
 
           <div className="flex items-center justify-between p-4 border-t border-border/40 mt-4">
             <span className="text-xs text-muted-foreground font-medium">
-              Page {page} of {totalPages} ({total} Total)
+              Page {page} of {Math.max(1, totalPages)} ({total} Total)
             </span>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page <= 1}
-                onClick={() => setPage((p) => Math.max(p - 1, 1))}
-                className="h-8 text-xs font-semibold gap-1"
-              >
-                <ChevronLeft className="size-3.5" />
-                <span>Prev</span>
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page >= totalPages}
-                onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
-                className="h-8 text-xs font-semibold gap-1"
-              >
-                <span>Next</span>
-                <ChevronRight className="size-3.5" />
-              </Button>
-            </div>
+            <ListPagination page={page} totalPages={totalPages} onChange={setPage} loading={loading} />
           </div>
         </CardContent>
       </Card>

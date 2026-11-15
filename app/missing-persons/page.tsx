@@ -1,16 +1,17 @@
 'use client';
 
 import PageSkeleton from '@/components/page-skeleton';
+import ListPagination from '@/components/list-pagination';
+import { usePaginatedList } from '@/hooks/use-paginated-list';
 import { useUrlState } from '@/hooks/use-url-state';
 import dynamic from 'next/dynamic';
-import React, { useEffect, useState, useCallback, Suspense } from 'react';
+import React, { useState, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { AlertCircle, Plus } from 'lucide-react';
 import Navbar from '@/components/navbar';
 import SearchBar from '@/components/searchbar';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { publicApi } from '@/lib/api';
 import useAuth from '@/hooks/use-auth';
 import SleekCard from '@/components/sleekCard';
 import { MissingPerson } from '@/components/missing-persons/missing-person-dialog';
@@ -20,38 +21,14 @@ const AddMissingPersonDrawer = dynamic(() => import('@/components/missing-person
 const MissingPersonsPageContent = () => {
   const router = useRouter();
   const { user } = useAuth();
-  const [persons, setPersons] = useState<MissingPerson[]>([]);
   const [selectedPerson, setSelectedPerson] = useState<MissingPerson | null>(null);
   const [editingPerson, setEditingPerson] = useState<MissingPerson | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [urlSearch, setUrlSearch] = useUrlState('q');
-  const [searchTerm, setSearchTerm] = useState(urlSearch);
-
-  const fetchMissingPersons = useCallback(async (search?: string) => {
-    try {
-      setLoading(true);
-      const url = search?.trim()
-        ? `/missing-persons?search=${encodeURIComponent(search.trim())}`
-        : '/missing-persons';
-      const res = await publicApi.get(url);
-      const data = res.data?.data || res.data || [];
-      setPersons(Array.isArray(data) ? data : []);
-    } catch {
-      setPersons([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchMissingPersons(searchTerm);
-  }, [fetchMissingPersons]);
-
+  const [searchTerm, setUrlSearch] = useUrlState('q');
+  const { items: persons, loading, error, page, totalPages, setPage, refresh: fetchMissingPersons } =
+    usePaginatedList<MissingPerson>('/missing-persons', { params: { searchTerm: searchTerm.trim() || undefined } });
   const handleSearchChange = (val: string) => {
-    setSearchTerm(val);
     setUrlSearch(val);
-    fetchMissingPersons(val);
   };
 
   const handleAddClick = () => {
@@ -96,12 +73,13 @@ const MissingPersonsPageContent = () => {
             <SearchBar
               value={searchTerm}
               onChange={handleSearchChange}
-              onSubmit={() => fetchMissingPersons(searchTerm)}
+              onSubmit={() => fetchMissingPersons()}
               placeholder="Search by name, location..."
             />
           </div>
         </div>
 
+        {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {[1, 2, 3, 4, 5, 6].map((idx) => (
@@ -143,6 +121,7 @@ const MissingPersonsPageContent = () => {
             ))}
           </div>
         )}
+        <ListPagination page={page} totalPages={totalPages} onChange={setPage} loading={loading} />
       </main>
 
       <MissingPersonDetailsDrawer
@@ -152,7 +131,7 @@ const MissingPersonsPageContent = () => {
           if (!open) setSelectedPerson(null);
         }}
         onEdit={handleEdit}
-        onRefresh={() => fetchMissingPersons(searchTerm)}
+        onRefresh={() => fetchMissingPersons()}
       />
 
       <AddMissingPersonDrawer
@@ -162,7 +141,7 @@ const MissingPersonsPageContent = () => {
           if (!open) setEditingPerson(null);
         }}
         onSuccess={() => {
-          fetchMissingPersons(searchTerm);
+          fetchMissingPersons();
           setEditingPerson(null);
         }}
         editPerson={editingPerson}

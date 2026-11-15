@@ -1,5 +1,7 @@
 # Emergency Disaster Response & Management System
 
+## Live Link: [edrms-frontend-next-js.vercel.app](https://edrms-frontend-next-js.vercel.app/)
+
 # 1. Project Overview
 
 ## 1.1 Problem Statement
@@ -46,7 +48,7 @@ Admins manage all accounts and verify or approve public warnings, posts, volunte
 * File upload (e.g., profile image or documents)
 * Soft Deletetion & Trash
 * PDF Generation using React PDF
-* Stripe Integration
+* Stripe & Bkash Integration
 * Toast for confirmation for every action.
 * Global custom error handling page, redirect to `/home` if not authorized
 * Custom UI Library (Shadcn, Material UI, Universe io)
@@ -91,25 +93,6 @@ Admins manage all accounts and verify or approve public warnings, posts, volunte
 | Icons                | Lucide React                      |
 | Sliders & Carousels  | Swiper                            |
 
-## Backend
-
-| Category            | Tool / Framework / Library                          |
-| ------------------- | --------------------------------------------------- |
-| Core Framework      | NestJS                                              |
-| Language & Runtime  | TypeScript, Node.js                                 |
-| Database            | PostgreSQL                                          |
-| Database ORM        | TypeORM (@nestjs/typeorm)                           |
-| Authentication      | Passport.js, JWT (@nestjs/jwt)                      |
-| Auth Strategies     | Passport Local, Passport JWT, Passport Google OAuth |
-| Password Encryption | bcrypt                                              |
-| Mail Service / SMTP | Nodemailer, @nestjs-modules/mailer                  |
-| Payment Gateway     | Stripe SDK                                          |
-| File Uploads        | Multer                                              |
-| API Documentation   | Swagger (@nestjs/swagger, swagger-ui-express)       |
-| Environment Config  | @nestjs/config, dotenv                              |
-
----
-
 # 4. Entity Relationship Diagram
 
 ![Entity Relationship Diagram](files/er-diagram.jpg)
@@ -118,47 +101,47 @@ Admins manage all accounts and verify or approve public warnings, posts, volunte
 
 # 5. Functional Requirements
 
-| No             | Name                                                    | Frontend URL                       | Backend Endpoint                                                                                                                     | Authorization                                      |
-| -------------- | ------------------------------------------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------- |
-| **FR1**  | Current Disasters & Live Alert Feed                     | `/disaster`                      | `GET /disaster`                                                                                                                    | Public                                             |
-| **FR2**  | Disaster Detailed View & Impact Zones                   | `/disaster/[id]`                 | `GET /disaster/:id`                                                                                                                | Public                                             |
-| **FR3**  | Missing Persons Public Directory & Search               | `/missing-persons`               | `GET /missing-persons`                                                                                                             | Public                                             |
-| **FR4**  | Missing Person Detailed Profile                         | `/missing-persons/[id]`          | `GET /missing-persons/:id`                                                                                                         | Public                                             |
-| **FR5**  | Public Rescue Requests & SOS Feed                       | `/rescue-requests`               | `GET /rescue-requests`                                                                                                             | Public                                             |
-| **FR6**  | Rescue Request Specific Details                         | `/rescue-requests/[id]`          | `GET /rescue-requests/:id`                                                                                                         | Public                                             |
-| **FR7**  | Donation Campaigns Directory                            | `/donations`                     | `GET /donations/campaigns`                                                                                                         | Public                                             |
+| No             | Name                                                    | Frontend URL                       | Backend Endpoint                                                                                                                   | Authorization                                      |
+| -------------- | ------------------------------------------------------- | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| **FR1**  | Current Disasters & Live Alert Feed                     | `/disaster`                      | `GET /disaster`                                                                                                                  | Public                                             |
+| **FR2**  | Disaster Detailed View & Impact Zones                   | `/disaster/[id]`                 | `GET /disaster/:id`                                                                                                              | Public                                             |
+| **FR3**  | Missing Persons Public Directory & Search               | `/missing-persons`               | `GET /missing-persons`                                                                                                           | Public                                             |
+| **FR4**  | Missing Person Detailed Profile                         | `/missing-persons/[id]`          | `GET /missing-persons/:id`                                                                                                       | Public                                             |
+| **FR5**  | Public Rescue Requests & SOS Feed                       | `/rescue-requests`               | `GET /rescue-requests`                                                                                                           | Public                                             |
+| **FR6**  | Rescue Request Specific Details                         | `/rescue-requests/[id]`          | `GET /rescue-requests/:id`                                                                                                       | Public                                             |
+| **FR7**  | Donation Campaigns Directory                            | `/donations`                     | `GET /donations/campaigns`                                                                                                       | Public                                             |
 | **FR8**  | Specific Donation Campaign & Aid Application            | `/donations/[id]`                | `GET /donations/campaigns/:idPOST /donations/campaigns/:id/donate``POST /donations/campaigns/:id/apply`                          | Public / Authenticated User                        |
-| **FR9**  | Community Discussion Forum & Ground Reports             | `/community`                     | `GET /community-posts`                                                                                                             | Public                                             |
+| **FR9**  | Community Discussion Forum & Ground Reports             | `/community`                     | `GET /community-posts`                                                                                                           | Public                                             |
 | **FR10** | Community Post Detailed View & Comments                 | `/community/[id]`                | `GET /community-posts/:idGET /community-posts/:id/comments``POST /community-posts/:id/comments`                                  | Public / Authenticated User                        |
-| **FR11** | Emergency Relief Shelters Directory                     | `/shelter`                       | `GET /shelter`                                                                                                                     | Public                                             |
-| **FR12** | Gemini Flash AI Assistant Chatbot                       | Global UI Drawer                   | `POST /api/chat`                                                                                                                   | Public                                             |
-| **FR13** | User Sign In                                            | `/sign-in`                       | `POST /auth/sign-in`                                                                                                               | Public (Unauthenticated)                           |
-| **FR14** | General User Sign Up                                    | `/sign-up`                       | `POST /auth/register-user`                                                                                                         | Public (Unauthenticated)                           |
-| **FR15** | Email Verification                                      | `/auth/callback`                 | `GET /auth/verify-email`                                                                                                           | Public                                             |
-| **FR16** | Volunteer Registration & Onboarding                     | `/volunteer-registration-form`   | `POST /volunteers/register`                                                                                                        | Authenticated User                                 |
-| **FR17** | Relief Organization Registration & Verification Request | `/signup-as-relief-org`          | `POST /relief-org/sign-up-as-relief-org`                                                                                           | Authenticated User                                 |
+| **FR11** | Emergency Relief Shelters Directory                     | `/shelter`                       | `GET /shelter`                                                                                                                   | Public                                             |
+| **FR12** | Gemini Flash AI Assistant Chatbot                       | Global UI Drawer                   | `POST /api/chat`                                                                                                                 | Public                                             |
+| **FR13** | User Sign In                                            | `/sign-in`                       | `POST /auth/sign-in`                                                                                                             | Public (Unauthenticated)                           |
+| **FR14** | General User Sign Up                                    | `/sign-up`                       | `POST /auth/register-user`                                                                                                       | Public (Unauthenticated)                           |
+| **FR15** | Email Verification                                      | `/auth/callback`                 | `GET /auth/verify-email`                                                                                                         | Public                                             |
+| **FR16** | Volunteer Registration & Onboarding                     | `/volunteer-registration-form`   | `POST /volunteers/register`                                                                                                      | Authenticated User                                 |
+| **FR17** | Relief Organization Registration & Verification Request | `/signup-as-relief-org`          | `POST /relief-org/sign-up-as-relief-org`                                                                                         | Authenticated User                                 |
 | **FR18** | User Profile & Personal Safety Status Toggle            | `/user/profile`                  | `GET /auth/mePATCH /users/update-profile``POST /users/is-safe`                                                                   | Authenticated (USER, VOLUNTEER, RELIEF_ORG, ADMIN) |
 | **FR19** | My Rescue Requests Management                           | `/user/rescue-requests`          | `GET /rescue-requests/myPOST /rescue-requests``PATCH /rescue-requests/:id/cancel`                                                | Authenticated User                                 |
 | **FR20** | My Missing Person Reports                               | `/user/missing-persons`          | `GET /missing-persons/myPOST /missing-persons``PATCH /missing-persons/:id/status`                                                | Authenticated User                                 |
 | **FR21** | My Community Posts & Discussions                        | `/user/community-posts`          | `GET /community-postsPOST /community-posts``DELETE /community-posts/:id`                                                         | Authenticated User                                 |
-| **FR22** | User Donation History                                   | `/user/donations`                | `GET /donations/my-applications`                                                                                                   | Authenticated User                                 |
-| **FR23** | User Aid Applications Status Tracking                   | `/user/applications`             | `GET /donations/my-applications`                                                                                                   | Authenticated User                                 |
+| **FR22** | User Donation History                                   | `/user/donations`                | `GET /donations/my-applications`                                                                                                 | Authenticated User                                 |
+| **FR23** | User Aid Applications Status Tracking                   | `/user/applications`             | `GET /donations/my-applications`                                                                                                 | Authenticated User                                 |
 | **FR24** | Volunteer Operational Profile & Status                  | `/volunteer/profile`             | `GET /volunteers/mePATCH /volunteers/me``POST /volunteers/verification/apply`                                                    | VOLUNTEER                                          |
 | **FR25** | Nearby Rescue Opportunities & Tasks                     | `/volunteer/opportunities`       | `GET /volunteers/rescue-requests/nearbyPOST /volunteers/rescue-tasks/:id/accept``POST /volunteers/rescue-tasks/:id/reject`       | VOLUNTEER                                          |
 | **FR26** | Volunteer Active Tasks & Progress Updates               | `/volunteer/profile` (Tasks Tab) | `GET /volunteers/rescue-tasks/myPATCH /volunteers/rescue-tasks/:taskId/progress``POST /volunteers/rescue-tasks/:taskId/complete` | VOLUNTEER                                          |
 | **FR27** | Ground Field Reports (Routes & Resource Shortages)      | `/volunteer/field-reports`       | `GET /volunteers/field-reports/myPOST /volunteers/field-reports/routes``POST /volunteers/field-reports/shortages`                | VOLUNTEER                                          |
 | **FR28** | Relief Organization Requests & Group Joins              | `/volunteer/groups`              | `GET /volunteers/organization-requestsPOST /volunteers/organization-requests/:id/join``GET /volunteers/group-joins/my`           | VOLUNTEER                                          |
-| **FR29** | Organization Profile & Credential Management            | `/relief-org/profile`            | `GET /relief-org/profile/mePATCH /relief-org/profile/me`                                                                           | RELIEF_ORG                                         |
-| **FR30** | Disaster Alerts & Crisis Creation                       | `/relief-org/manage-disaster`    | `GET /disasterPOST /disaster`                                                                                                      | RELIEF_ORG, ADMIN                                  |
-| **FR31** | Create & Manage Donation Campaigns                      | `/relief-org/manage-donations`   | `GET /donations/campaignsPOST /donations/campaigns`                                                                                | RELIEF_ORG                                         |
-| **FR32** | Review Aid Applications from Victims                    | `/relief-org/applications`       | `GET /donations/applicationsPATCH /donations/applications/:id/review`                                                              | RELIEF_ORG                                         |
-| **FR33** | Coordinate Volunteer Groups & Deployments               | `/relief-org/manage-volunteers`  | `GET /volunteersPOST /volunteers/organization-requests`                                                                            | RELIEF_ORG                                         |
-| **FR34** | Review Volunteer Field Reports & Shortages              | `/relief-org/volunteer-reports`  | `GET /volunteers/field-reports/my`                                                                                                 | RELIEF_ORG                                         |
-| **FR35** | Admin Dashboard Metrics & Analytics                     | `/admin`                         | `GET /admin/reportsGET /admin/accounts`                                                                                            | ADMIN                                              |
+| **FR29** | Organization Profile & Credential Management            | `/relief-org/profile`            | `GET /relief-org/profile/mePATCH /relief-org/profile/me`                                                                         | RELIEF_ORG                                         |
+| **FR30** | Disaster Alerts & Crisis Creation                       | `/relief-org/manage-disaster`    | `GET /disasterPOST /disaster`                                                                                                    | RELIEF_ORG, ADMIN                                  |
+| **FR31** | Create & Manage Donation Campaigns                      | `/relief-org/manage-donations`   | `GET /donations/campaignsPOST /donations/campaigns`                                                                              | RELIEF_ORG                                         |
+| **FR32** | Review Aid Applications from Victims                    | `/relief-org/applications`       | `GET /donations/applicationsPATCH /donations/applications/:id/review`                                                            | RELIEF_ORG                                         |
+| **FR33** | Coordinate Volunteer Groups & Deployments               | `/relief-org/manage-volunteers`  | `GET /volunteersPOST /volunteers/organization-requests`                                                                          | RELIEF_ORG                                         |
+| **FR34** | Review Volunteer Field Reports & Shortages              | `/relief-org/volunteer-reports`  | `GET /volunteers/field-reports/my`                                                                                               | RELIEF_ORG                                         |
+| **FR35** | Admin Dashboard Metrics & Analytics                     | `/admin`                         | `GET /admin/reportsGET /admin/accounts`                                                                                          | ADMIN                                              |
 | **FR36** | Account Management & Role Assignment                    | `/admin/accounts`                | `GET /admin/accountsPATCH /admin/accounts/:id/role``DELETE /admin/accounts/:idPATCH /admin/accounts/:id/restore`                 | ADMIN                                              |
-| **FR37** | Volunteer Verification & Credential Review              | `/admin/volunteers`              | `GET /admin/volunteersPATCH /admin/volunteers/:id/verify`                                                                          | ADMIN                                              |
-| **FR38** | Relief Organization Verification & Audit                | `/admin/relief-orgs`             | `GET /admin/relief-orgsPATCH /admin/relief-orgs/:id/verify`                                                                        | ADMIN                                              |
-| **FR39** | Disaster Alerts Moderation & Official Verification      | `/admin/disasters`               | `GET /admin/disastersPATCH /admin/disasters/:id/verify`                                                                            | ADMIN                                              |
-| **FR40** | Rescue Requests Global Oversight                        | `/admin/rescue-requests`         | `GET /admin/rescue-requestsPATCH /rescue-requests/:id/status`                                                                      | ADMIN                                              |
+| **FR37** | Volunteer Verification & Credential Review              | `/admin/volunteers`              | `GET /admin/volunteersPATCH /admin/volunteers/:id/verify`                                                                        | ADMIN                                              |
+| **FR38** | Relief Organization Verification & Audit                | `/admin/relief-orgs`             | `GET /admin/relief-orgsPATCH /admin/relief-orgs/:id/verify`                                                                      | ADMIN                                              |
+| **FR39** | Disaster Alerts Moderation & Official Verification      | `/admin/disasters`               | `GET /admin/disastersPATCH /admin/disasters/:id/verify`                                                                          | ADMIN                                              |
+| **FR40** | Rescue Requests Global Oversight                        | `/admin/rescue-requests`         | `GET /admin/rescue-requestsPATCH /rescue-requests/:id/status`                                                                    | ADMIN                                              |
 
 ---

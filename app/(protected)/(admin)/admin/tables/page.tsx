@@ -5,8 +5,6 @@ import {
   Database,
   Table as TableIcon,
   RefreshCw,
-  ChevronLeft,
-  ChevronRight,
   Eye,
   FileJson,
   Layers,
@@ -23,6 +21,8 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import ListPagination from '@/components/list-pagination';
+import { usePaginatedList } from '@/hooks/use-paginated-list';
 import useAxiosSecure from '@/app/hooks/useAxiosSecure';
 
 interface TableMeta {
@@ -35,21 +35,13 @@ export default function AdminDatabaseExplorerPage() {
   const axiosSecure = useAxiosSecure();
   const [tables, setTables] = useState<TableMeta[]>([]);
   const [selectedTable, setSelectedTable] = useState<string | null>(null);
-  const [tableData, setTableData] = useState<any[]>([]);
   const [loadingTables, setLoadingTables] = useState(true);
-  const [loadingData, setLoadingData] = useState(false);
   const [searchTable, setSearchTable] = useState('');
 
-  // Pagination for table rows
-  const [page, setPage] = useState<number>(1);
-  const [totalPages, setTotalPages] = useState<number>(1);
-  const [totalRows, setTotalRows] = useState<number>(0);
-
   // JSON View Drawer
-  const [inspectRow, setInspectRow] = useState<any | null>(null);
+  const [inspectRow, setInspectRow] = useState<Record<string, unknown> | null>(null);
 
   const fetchTables = useCallback(async () => {
-    setLoadingTables(true);
     try {
       const res = await axiosSecure.get('/admin/tables');
       const data = res.data?.data || res.data;
@@ -66,39 +58,15 @@ export default function AdminDatabaseExplorerPage() {
     }
   }, [axiosSecure, selectedTable]);
 
-  const fetchTableData = useCallback(async (tableName: string, p = 1) => {
-    setLoadingData(true);
-    try {
-      const res = await axiosSecure.get(`/admin/tables/${tableName}`, {
-        params: { page: p, limit: 10 },
-      });
-      const responseData = res.data?.data || res.data;
-      if (responseData?.data) {
-        setTableData(responseData.data);
-        setTotalPages(responseData.meta?.totalPages || 1);
-        setTotalRows(responseData.meta?.total || responseData.data.length);
-      } else if (Array.isArray(responseData)) {
-        setTableData(responseData);
-        setTotalPages(1);
-        setTotalRows(responseData.length);
-      }
-    } catch (error) {
-      console.error(`Failed to fetch records for table ${tableName}:`, error);
-      setTableData([]);
-    } finally {
-      setLoadingData(false);
-    }
-  }, [axiosSecure]);
+  const list = usePaginatedList<Record<string, unknown>>(`/admin/tables/${selectedTable ?? ''}`, {
+    client: axiosSecure,
+    enabled: Boolean(selectedTable),
+  });
+  const { items: tableData, loading: loadingData, page, totalPages, total: totalRows, setPage } = list;
 
   useEffect(() => {
     fetchTables();
   }, [fetchTables]);
-
-  useEffect(() => {
-    if (selectedTable) {
-      fetchTableData(selectedTable, page);
-    }
-  }, [selectedTable, page, fetchTableData]);
 
   const filteredTables = tables.filter((t) =>
     t.tableName.toLowerCase().includes(searchTable.toLowerCase()) ||
@@ -132,6 +100,7 @@ export default function AdminDatabaseExplorerPage() {
         </Button>
       </div>
 
+      {list.error && <p role="alert" className="text-sm text-destructive">{list.error}</p>}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
         {/* Table Selector Sidebar */}
         <Card className="border-border/60 lg:col-span-1">
@@ -232,7 +201,7 @@ export default function AdminDatabaseExplorerPage() {
                     </tr>
                   ) : (
                     tableData.map((row, idx) => (
-                      <tr key={row.id || idx} className="hover:bg-muted/30 transition-colors">
+                      <tr key={String(row.id ?? idx)} className="hover:bg-muted/30 transition-colors">
                         {tableColumns.map((col) => {
                           const val = row[col];
                           const displayVal =
@@ -265,30 +234,9 @@ export default function AdminDatabaseExplorerPage() {
 
             <div className="flex items-center justify-between p-4 border-t border-border/40 mt-4">
               <span className="text-xs text-muted-foreground font-medium">
-                Page {page} of {totalPages} ({totalRows} Total Rows)
+                Page {page} of {Math.max(1, totalPages)} ({totalRows} Total Rows)
               </span>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page <= 1}
-                  onClick={() => setPage((p) => Math.max(p - 1, 1))}
-                  className="h-8 text-xs font-semibold gap-1"
-                >
-                  <ChevronLeft className="size-3.5" />
-                  <span>Prev</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page >= totalPages}
-                  onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
-                  className="h-8 text-xs font-semibold gap-1"
-                >
-                  <span>Next</span>
-                  <ChevronRight className="size-3.5" />
-                </Button>
-              </div>
+              <ListPagination page={page} totalPages={totalPages} onChange={setPage} loading={loadingData} />
             </div>
           </CardContent>
         </Card>

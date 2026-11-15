@@ -9,11 +9,14 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from '@/components/ui/toast';
 import useAuth from '@/hooks/use-auth';
-import { axiosSecure, publicApi } from '@/lib/api';
+import { axiosSecure } from '@/lib/api';
 import EditProfileDrawer, { UserProfileData } from '@/components/profile/edit-profile-drawer';
 import { Disaster } from '@/components/disaster/types';
 const AddDisasterDrawer = dynamic(() => import('@/components/disaster/add-disaster-drawer'), { ssr: false });
 import DashboardFrame from '@/components/profile/dashboard-frame';
+import ListPagination from '@/components/list-pagination';
+import SearchBar from '@/components/searchbar';
+import { usePaginatedList } from '@/hooks/use-paginated-list';
 import { getApiErrorMessage } from '@/utils/api-error';
 
 const ReliefOrgManageDisasterPage = () => {
@@ -23,15 +26,21 @@ const ReliefOrgManageDisasterPage = () => {
   const [loading, setLoading] = useState(true);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [togglingSafety, setTogglingSafety] = useState(false);
-  const [disasters, setDisasters] = useState<Disaster[]>([]);
+  const [search, setSearch] = useState('');
+  const list = usePaginatedList<Disaster>('/disasters', {
+    client: axiosSecure,
+    enabled: Boolean(user),
+    params: { searchTerm: search.trim() || undefined },
+  });
+  const { items: disasters, refresh: refreshList } = list;
   const [isDisasterDrawerOpen, setIsDisasterDrawerOpen] = useState(false);
   const [editingDisaster, setEditingDisaster] = useState<Disaster | null>(null);
 
   const fetchPageData = useCallback(async () => {
+    refreshList();
     try {
-      const [profileResult, disastersResult] = await Promise.allSettled([
-        axiosSecure.get('/users/profile'),
-        publicApi.get('/disasters')
+      const [profileResult] = await Promise.allSettled([
+        axiosSecure.get('/users/profile')
       ]);
       if (profileResult.status === 'fulfilled') {
         const data = profileResult.value.data?.data || profileResult.value.data;
@@ -43,20 +52,10 @@ const ReliefOrgManageDisasterPage = () => {
           type: 'error'
         });
       }
-      if (disastersResult.status === 'fulfilled') {
-        const data = disastersResult.value.data?.data || disastersResult.value.data;
-        setDisasters(Array.isArray(data) ? data : []);
-      } else {
-        toast.add({
-          id: 'manage-disaster-disasters-error',
-          title: 'Failed to load disasters. Please try again.',
-          type: 'error'
-        });
-      }
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [refreshList]);
   useEffect(() => {
     if (user) {
       fetchPageData();
@@ -86,6 +85,8 @@ const ReliefOrgManageDisasterPage = () => {
         onEdit={() => setIsEditOpen(true)}
         onToggleSafety={handleToggleSafety}
       >
+        <SearchBar value={search} onChange={setSearch} onSubmit={refreshList} placeholder="Search results..." />
+        {list.error && <p role="alert" className="text-sm text-destructive">{list.error}</p>}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
@@ -107,7 +108,7 @@ const ReliefOrgManageDisasterPage = () => {
             </Button>
           </div>
 
-          {disasters.length === 0 ? (
+          {list.loading ? (<p role="status" className="py-6 text-sm text-muted-foreground">Loading results...</p>) : disasters.length === 0 ? (
             <div className="rounded-lg border border-dashed border-border p-4 text-center bg-card space-y-3">
               <AlertTriangle className="size-8 text-muted-foreground/60 mx-auto" />
               <p className="text-xs text-muted-foreground">No active disaster alerts registered.</p>
@@ -165,6 +166,7 @@ const ReliefOrgManageDisasterPage = () => {
             </div>
           )}
         </div>
+        <ListPagination page={list.page} totalPages={list.totalPages} onChange={list.setPage} loading={list.loading} />
       </DashboardFrame>
       {profile && (
         <EditProfileDrawer

@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { normalizeApiRecord } from './api-records';
 
 const apiConfig = {
   baseURL: '/api',
@@ -12,20 +13,6 @@ const apiConfig = {
 export const publicApi = axios.create(apiConfig);
 export const axiosSecure = axios.create(apiConfig);
 
-// The retained report views use snake_case fields. Keep the API's camelCase
-// response available while supplying the fields those views and edit forms use.
-const normalizeMissingPerson = (person: Record<string, unknown>) => ({
-  ...person,
-  reporter_id: person.reporterId ?? person.reporter_id,
-  full_name: person.fullName ?? person.full_name,
-  last_seen_location: person.lastSeenLocation ?? person.last_seen_location,
-  last_seen_date: person.lastSeenDate ?? person.last_seen_date,
-  contact_phone: person.contactPhone ?? person.contact_phone,
-  photo_url: person.photoUrl ?? person.photo_url,
-  created_at: person.createdAt ?? person.created_at,
-  updated_at: person.updatedAt ?? person.updated_at,
-});
-
 // Use the same bearer token for retained dashboards and the admin panel.
 for (const client of [publicApi, axiosSecure]) {
   client.interceptors.request.use((config) => {
@@ -36,11 +23,10 @@ for (const client of [publicApi, axiosSecure]) {
     return config;
   });
   client.interceptors.response.use((response) => {
-    if (/^\/missing-persons(?:[/?]|$)/.test(response.config.url || '') && response.data?.data) {
-      const data = response.data.data;
-      response.data.data = Array.isArray(data)
-        ? data.map(normalizeMissingPerson)
-        : normalizeMissingPerson(data);
+    const url = response.config.url || '';
+    if (/^\/(?:missing-persons|rescue-requests|disasters|donations|community-posts|trash|admin|volunteers)(?:[/?]|$)/.test(url)
+      && !url.startsWith('/admin/tables') && response.data?.data) {
+      response.data.data = normalizeApiRecord(response.data.data);
     }
     return response;
   });

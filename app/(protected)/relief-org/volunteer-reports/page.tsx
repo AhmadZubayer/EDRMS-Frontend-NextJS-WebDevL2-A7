@@ -1,10 +1,12 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import useAuth from '@/hooks/use-auth';
 import { axiosSecure } from '@/lib/api';
-import { getApiErrorMessage } from '@/utils/api-error';
+import ListPagination from '@/components/list-pagination';
+import SearchBar from '@/components/searchbar';
+import { usePaginatedList } from '@/hooks/use-paginated-list';
 import OperationsDashboard, {
   LoadError,
 } from '@/components/volunteers/operations-dashboard';
@@ -26,32 +28,18 @@ import MuiDrawer from '@/components/mui-drawer';
 
 export default function VolunteerReportsPage() {
   const { user } = useAuth();
-  const [reports, setReports] = useState<FieldReport[]>([]);
   const [selected, setSelected] = useState<FieldReport | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const [filter, setFilter] = useState('all');
-  const load = useCallback(() => {
-    return axiosSecure
-      .get('/volunteers/field-reports')
-      .then((response) => {
-        setError('');
-        setReports(response.data?.data ?? response.data);
-      })
-      .catch((error: unknown) => {
-        setError(
-          getApiErrorMessage(error, 'Unable to load volunteer reports.'),
-        );
-      })
-      .finally(() => setLoading(false));
-  }, []);
-  useEffect(() => {
-    if (user) void load();
-  }, [user, load]);
-  const visible = reports.filter(
-    (report) => filter === 'all' || report.report_type === filter,
-  );
-
+  const [search, setSearch] = useState('');
+  const list = usePaginatedList<FieldReport>('/volunteers/field-reports', {
+    client: axiosSecure,
+    enabled: Boolean(user),
+    params: {
+      searchTerm: search.trim() || undefined,
+      reportType: filter === 'all' ? undefined : filter.toUpperCase(),
+    },
+  });
+  const { items: visible, loading, error, refresh: load } = list;
   return (
     <OperationsDashboard role="RELIEF_ORG" tab="volunteer-reports">
       <div className="space-y-5">
@@ -68,6 +56,7 @@ export default function VolunteerReportsPage() {
             Refresh
           </Button>
         </div>
+        <SearchBar value={search} onChange={setSearch} onSubmit={load} placeholder="Search volunteer reports..." />
         <select
           aria-label="Filter reports by type"
           value={filter}
@@ -159,6 +148,7 @@ export default function VolunteerReportsPage() {
           </div>
         )}
       </div>
+      <ListPagination page={list.page} totalPages={list.totalPages} onChange={list.setPage} loading={loading} />
       <MuiDrawer
         open={!!selected}
         onClose={() => setSelected(null)}

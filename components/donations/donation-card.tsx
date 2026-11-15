@@ -14,7 +14,7 @@ const DonationCard = ({ campaign, onClick }: DonationCardProps) => {
   const target = Number(campaign.target_amount) || 0;
   const collected = Number(campaign.raised_amount) || 0;
   const progressPct = target > 0 ? Math.min(100, Math.round((collected / target) * 100)) : 0;
-  const isActive = campaign.status === 'active';
+  const isActive = campaign.status.toLowerCase() === 'active';
 
   return (
     <StyledWrapper onClick={onClick}>

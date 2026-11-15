@@ -1,11 +1,9 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import {
   LifeBuoy,
   Filter,
-  ChevronLeft,
-  ChevronRight,
   MapPin,
   Phone,
   Eye,
@@ -26,6 +24,9 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import ListPagination from '@/components/list-pagination';
+import SearchBar from '@/components/searchbar';
+import { usePaginatedList } from '@/hooks/use-paginated-list';
 import useAxiosSecure from '@/app/hooks/useAxiosSecure';
 
 interface RescueRecord {
@@ -44,12 +45,8 @@ interface RescueRecord {
 
 export default function AdminRescueRequestsPage() {
   const axiosSecure = useAxiosSecure();
-  const [requests, setRequests] = useState<RescueRecord[]>([]);
-  const [loading, setLoading] = useState(true);
+
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [page, setPage] = useState<number>(1);
-  const [totalPages, setTotalPages] = useState<number>(1);
-  const [total, setTotal] = useState<number>(0);
   const [selectedRequest, setSelectedRequest] = useState<RescueRecord | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
@@ -64,35 +61,12 @@ export default function AdminRescueRequestsPage() {
   });
   const [creating, setCreating] = useState(false);
 
-  const fetchRequests = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params: Record<string, any> = { page, limit: 10 };
-      if (statusFilter !== 'all') {
-        params.status = statusFilter;
-      }
-      const res = await axiosSecure.get('/admin/rescue-requests', { params });
-      const responseData = res.data?.data || res.data;
-
-      if (responseData?.data) {
-        setRequests(responseData.data);
-        setTotalPages(responseData.meta?.totalPages || 1);
-        setTotal(responseData.meta?.total || responseData.data.length);
-      } else if (Array.isArray(responseData)) {
-        setRequests(responseData);
-        setTotalPages(1);
-        setTotal(responseData.length);
-      }
-    } catch (error) {
-      console.error('Failed to fetch rescue requests:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [axiosSecure, page, statusFilter]);
-
-  useEffect(() => {
-    fetchRequests();
-  }, [fetchRequests]);
+  const [search, setSearch] = useState('');
+  const list = usePaginatedList<RescueRecord>('/admin/rescue-requests', {
+    client: axiosSecure,
+    params: { searchTerm: search.trim() || undefined, status: statusFilter === 'all' ? undefined : statusFilter.toUpperCase() },
+  });
+  const { items: requests, loading, page, totalPages, total, setPage, refresh: fetchRequests } = list;
 
   const handleCreateRescueRequest = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -196,8 +170,10 @@ export default function AdminRescueRequestsPage() {
         </div>
       )}
 
+      {list.error && <p role="alert" className="text-sm text-destructive">{list.error}</p>}
       <Card className="border-border/60">
         <CardHeader className="p-4 sm:p-6 pb-2">
+          <SearchBar value={search} onChange={setSearch} onSubmit={list.refresh} placeholder="Search results..." />
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-2">
               <Filter className="size-4 text-muted-foreground" />
@@ -287,30 +263,9 @@ export default function AdminRescueRequestsPage() {
 
           <div className="flex items-center justify-between p-4 border-t border-border/40 mt-4">
             <span className="text-xs text-muted-foreground font-medium">
-              Page {page} of {totalPages} ({total} Total)
+              Page {page} of {Math.max(1, totalPages)} ({total} Total)
             </span>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page <= 1}
-                onClick={() => setPage((p) => Math.max(p - 1, 1))}
-                className="h-8 text-xs font-semibold gap-1"
-              >
-                <ChevronLeft className="size-3.5" />
-                <span>Prev</span>
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page >= totalPages}
-                onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
-                className="h-8 text-xs font-semibold gap-1"
-              >
-                <span>Next</span>
-                <ChevronRight className="size-3.5" />
-              </Button>
-            </div>
+            <ListPagination page={page} totalPages={totalPages} onChange={setPage} loading={loading} />
           </div>
         </CardContent>
       </Card>

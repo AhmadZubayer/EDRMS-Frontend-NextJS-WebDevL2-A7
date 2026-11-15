@@ -1,9 +1,11 @@
 'use client';
 
 import PageSkeleton from '@/components/page-skeleton';
+import ListPagination from '@/components/list-pagination';
+import { usePaginatedList } from '@/hooks/use-paginated-list';
 import { useUrlState } from '@/hooks/use-url-state';
 import dynamic from 'next/dynamic';
-import React, { useEffect, useState, useCallback, Suspense } from 'react';
+import React, { useState, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, MessageSquarePlus } from 'lucide-react';
 import Navbar from '@/components/navbar';
@@ -18,7 +20,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import useAuth from '@/hooks/use-auth';
-import { publicApi } from '@/lib/api';
 import { CommunityPost } from '@/components/community/types';
 import CommunityPostCard from '@/components/community/community-post-card';
 const AddCommunityPostDrawer = dynamic(() => import('@/components/community/add-community-post-drawer'), { ssr: false });
@@ -27,80 +28,29 @@ const CommunityPageContent = () => {
   const router = useRouter();
   const { user } = useAuth();
 
-  const [posts, setPosts] = useState<CommunityPost[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [urlSearch, setUrlSearch] = useUrlState('q');
-  const [urlSort, setUrlSort] = useUrlState('sort', 'desc');
-  const [searchQuery, setSearchQuery] = useState(urlSearch);
-  const [sortOption, setSortOption] = useState(urlSort);
+  const [searchQuery, setUrlSearch] = useUrlState('q');
+  const [sortOption, setUrlSort] = useUrlState('sort', 'desc');
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-
-  const fetchPosts = useCallback(async (search?: string, sortVal: string = 'desc') => {
-    try {
-      setLoading(true);
-
-      const params = new URLSearchParams();
-      if (search?.trim()) {
-        params.append('search', search.trim());
-      }
-
-      if (sortVal === 'asc' || sortVal === 'desc') {
-        params.append('sort', sortVal);
-      }
-
-      const queryString = params.toString();
-      const url = queryString ? `/community-posts?${queryString}` : '/community-posts';
-
-      const res = await publicApi.get(url);
-      const rawData = res.data?.data || res.data || [];
-      let list: CommunityPost[] = Array.isArray(rawData) ? rawData : [];
-
-      if (sortVal === 'posted_by_you') {
-        list = list.filter(
-          (p) =>
-            (user?.id && p.author_id === user.id) ||
-            (user?.name && p.postedBy?.name === user.name)
-        );
-      } else if (sortVal === 'posted_by_volunteers') {
-        list = list.filter(
-          (p) => p.postedBy?.role?.toLowerCase() === 'volunteer'
-        );
-      } else if (sortVal === 'posted_by_relief_org') {
-        list = list.filter(
-          (p) =>
-            p.postedBy?.role?.toLowerCase() === 'relief_org' ||
-            p.postedBy?.role?.toLowerCase() === 'organization'
-        );
-      } else if (sortVal === 'posted_by_admin') {
-        list = list.filter(
-          (p) => p.postedBy?.role?.toLowerCase() === 'admin'
-        );
-      }
-
-      setPosts(list);
-    } catch {
-      setPosts([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [user]);
-
-  useEffect(() => {
-    fetchPosts(searchQuery, sortOption);
-  }, [fetchPosts, sortOption]);
-
-  const handleSearchChange = (val: string) => {
-    setSearchQuery(val);
-    setUrlSearch(val);
-    fetchPosts(val, sortOption);
+  const authorRoles: Record<string, string> = {
+    posted_by_volunteers: 'VOLUNTEER',
+    posted_by_relief_org: 'RELIEF_ORG',
+    posted_by_admin: 'ADMIN',
   };
+  const { items: posts, loading, error, page, totalPages, setPage, refresh: fetchPosts } =
+    usePaginatedList<CommunityPost>('/community-posts', {
+      params: {
+        searchTerm: searchQuery.trim() || undefined,
+        sortOrder: sortOption === 'asc' ? 'asc' : 'desc',
+        authorId: sortOption === 'posted_by_you' ? user?.id : undefined,
+        authorRole: authorRoles[sortOption],
+      },
+      enabled: sortOption !== 'posted_by_you' || Boolean(user),
+    });
 
-  const handleSortChange = (val: string | null) => {
-    if (!val) return;
-    setSortOption(val);
-    setUrlSort(val);
+  const handleSearchChange = (value: string) => setUrlSearch(value);
+  const handleSortChange = (value: string | null) => {
+    if (value) setUrlSort(value);
   };
-
   const handleOpenDrawer = () => {
     if (!user) {
       router.push('/sign-in?returnUrl=/community');
@@ -137,7 +87,7 @@ const CommunityPageContent = () => {
               <SearchBar
                 value={searchQuery}
                 onChange={handleSearchChange}
-                onSubmit={() => fetchPosts(searchQuery, sortOption)}
+                onSubmit={() => fetchPosts()}
                 placeholder="Search community posts..."
                 className="flex-1"
                 inputClassName="w-full sm:w-full focus:w-full sm:focus:w-full"
@@ -154,6 +104,7 @@ const CommunityPageContent = () => {
             </Button>
           </div>
 
+          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
           <div className="space-y-4">
             {loading ? (
               <div className="space-y-4">
@@ -204,18 +155,19 @@ const CommunityPageContent = () => {
                 <CommunityPostCard
                   key={post.postId}
                   post={post}
-                  onPostUpdated={() => fetchPosts(searchQuery, sortOption)}
+                  onPostUpdated={() => fetchPosts()}
                 />
               ))
             )}
           </div>
         </div>
+        <ListPagination page={page} totalPages={totalPages} onChange={setPage} loading={loading} />
       </main>
 
       <AddCommunityPostDrawer
         open={isDrawerOpen}
         onOpenChange={setIsDrawerOpen}
-        onSuccess={() => fetchPosts(searchQuery, sortOption)}
+        onSuccess={() => fetchPosts()}
       />
     </div>
   );

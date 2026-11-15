@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Plus, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -26,44 +26,42 @@ const AddVolunteerGroupDrawer = dynamic(() => import('@/components/volunteers/ad
 import OperationsDashboard, {
   LoadError,
 } from '@/components/volunteers/operations-dashboard';
+import ListPagination from '@/components/list-pagination';
+import SearchBar from '@/components/searchbar';
+import { usePaginatedList } from '@/hooks/use-paginated-list';
 import { getApiErrorMessage } from '@/utils/api-error';
 
 export default function ReliefOrgManageVolunteersPage() {
   const { user } = useAuth();
-  const [groups, setGroups] = useState<VolunteerGroup[]>([]);
-  const [applications, setApplications] = useState<OrganizationJoin[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const [groupDrawer, setGroupDrawer] = useState(false);
   const [editingGroup, setEditingGroup] = useState<VolunteerGroup | null>(null);
   const [selected, setSelected] = useState<OrganizationJoin | null>(null);
   const [reviewing, setReviewing] = useState(false);
   const [groupFilter, setGroupFilter] = useState('all');
 
-  const load = useCallback(() => {
-    return Promise.all([
-      axiosSecure.get('/volunteers/organization-requests/my-created'),
-      axiosSecure.get('/volunteers/organization-applications'),
-    ])
-      .then(([groups, applications]) => {
-        setError('');
-        setGroups(groups.data?.data ?? groups.data);
-        setApplications(applications.data?.data ?? applications.data);
-      })
-      .catch((error: unknown) => {
-        setError(
-          getApiErrorMessage(
-            error,
-            'Unable to load volunteer groups and applications.',
-          ),
-        );
-      })
-      .finally(() => setLoading(false));
-  }, []);
-  useEffect(() => {
-    if (user) void load();
-  }, [user, load]);
-
+  const [groupSearch, setGroupSearch] = useState('');
+  const [applicationSearch, setApplicationSearch] = useState('');
+  const groupList = usePaginatedList<VolunteerGroup>('/volunteers/organization-requests/my-created', {
+    client: axiosSecure,
+    enabled: Boolean(user),
+    params: { searchTerm: groupSearch.trim() || undefined },
+  });
+  const applicationList = usePaginatedList<OrganizationJoin>('/volunteers/organization-applications', {
+    client: axiosSecure,
+    enabled: Boolean(user),
+    params: {
+      searchTerm: applicationSearch.trim() || undefined,
+      organizationRequestId: groupFilter === 'all' ? undefined : groupFilter,
+    },
+  });
+  const groups = groupList.items;
+  const applications = applicationList.items;
+  const loading = groupList.loading || applicationList.loading;
+  const error = groupList.error || applicationList.error;
+  const load = () => {
+    groupList.refresh();
+    applicationList.refresh();
+  };
   const review = async (status: 'approved' | 'rejected') => {
     if (!selected) return;
     setReviewing(true);
@@ -92,9 +90,7 @@ export default function ReliefOrgManageVolunteersPage() {
       setReviewing(false);
     }
   };
-  const filtered = applications.filter(
-    (a) => groupFilter === 'all' || a.organization_request_id === groupFilter,
-  );
+  const filtered = applications;
   const volunteer = selected?.volunteer;
 
   return (
@@ -129,11 +125,13 @@ export default function ReliefOrgManageVolunteersPage() {
             </Button>
           </div>
         </div>
-        {loading ? (
+        <SearchBar value={groupSearch} onChange={setGroupSearch} onSubmit={groupList.refresh} placeholder="Search volunteer groups..." />
+        {loading && (
           <p role="status" className="text-sm text-muted-foreground">
             Loading groups and applications...
           </p>
-        ) : error ? (
+        )}
+        {error ? (
           <LoadError message={error} retry={load} />
         ) : (
           <>
@@ -196,6 +194,7 @@ export default function ReliefOrgManageVolunteersPage() {
                 </TableBody>
               </Table>
             </div>
+            <ListPagination page={groupList.page} totalPages={groupList.totalPages} onChange={groupList.setPage} loading={groupList.loading} />
             <section className="space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
@@ -221,6 +220,7 @@ export default function ReliefOrgManageVolunteersPage() {
                   ))}
                 </select>
               </div>
+              <SearchBar value={applicationSearch} onChange={setApplicationSearch} onSubmit={applicationList.refresh} placeholder="Search applications..." />
               <div className="rounded-lg border border-border bg-card overflow-hidden">
                 <Table>
                   <TableHeader>
@@ -275,12 +275,12 @@ export default function ReliefOrgManageVolunteersPage() {
                           <TableCell>
                             <Badge
                               variant={
-                                application.status === 'approved'
+                                application.status.toLowerCase() === 'approved'
                                   ? 'default'
                                   : 'outline'
                               }
                             >
-                              {application.status === 'approved'
+                              {application.status.toLowerCase() === 'approved'
                                 ? 'Added'
                                 : formatVolunteerValue(application.status)}
                             </Badge>
@@ -291,6 +291,7 @@ export default function ReliefOrgManageVolunteersPage() {
                   </TableBody>
                 </Table>
               </div>
+              <ListPagination page={applicationList.page} totalPages={applicationList.totalPages} onChange={applicationList.setPage} loading={applicationList.loading} />
             </section>
           </>
         )}
@@ -365,12 +366,12 @@ export default function ReliefOrgManageVolunteersPage() {
               <p className="mb-4 text-xs text-muted-foreground">
                 Application: {formatVolunteerValue(selected.status)}
               </p>
-              {selected.status === 'pending' && (
+              {selected.status.toLowerCase() === 'pending' && (
                 <div className="flex flex-wrap gap-2">
                   <Button
                     onClick={() => review('approved')}
                     disabled={
-                      reviewing || volunteer?.verification_status !== 'verified'
+                      reviewing || volunteer?.verification_status?.toLowerCase() !== 'verified'
                     }
                   >
                     {reviewing ? 'Saving...' : 'Add to group'}

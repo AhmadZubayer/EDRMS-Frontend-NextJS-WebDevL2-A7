@@ -1,14 +1,12 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import {
   Users,
   Search,
   Shield,
   Trash2,
   RotateCcw,
-  ChevronLeft,
-  ChevronRight,
   Filter,
   CheckCircle2,
   Plus,
@@ -25,11 +23,16 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import ListPagination from '@/components/list-pagination';
+import SearchBar from '@/components/searchbar';
+import { usePaginatedList } from '@/hooks/use-paginated-list';
+import { getApiErrorMessage } from '@/utils/api-error';
 import useAxiosSecure from '@/app/hooks/useAxiosSecure';
 
 interface AccountRecord {
   id: string;
   email: string;
+  name?: string;
   role: string;
   user_id: string;
   created_at: string;
@@ -43,14 +46,10 @@ interface AccountRecord {
 
 export default function AdminAccountsPage() {
   const axiosSecure = useAxiosSecure();
-  const [accounts, setAccounts] = useState<AccountRecord[]>([]);
-  const [loading, setLoading] = useState(true);
+
   const [search, setSearch] = useState('');
   const [selectedRole, setSelectedRole] = useState<string>('all');
   const [includeDeleted, setIncludeDeleted] = useState<boolean>(false);
-  const [page, setPage] = useState<number>(1);
-  const [totalPages, setTotalPages] = useState<number>(1);
-  const [total, setTotal] = useState<number>(0);
 
   // Modal states
   const [roleModalAccount, setRoleModalAccount] = useState<AccountRecord | null>(null);
@@ -70,39 +69,11 @@ export default function AdminAccountsPage() {
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState('');
 
-  const fetchAccounts = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params: Record<string, any> = {
-        page,
-        limit: 10,
-        includeDeleted,
-      };
-      if (selectedRole !== 'all') {
-        params.role = selectedRole;
-      }
-      const res = await axiosSecure.get('/admin/accounts', { params });
-      const responseData = res.data?.data || res.data;
-
-      if (responseData?.data) {
-        setAccounts(responseData.data);
-        setTotalPages(responseData.meta?.totalPages || 1);
-        setTotal(responseData.meta?.total || responseData.data.length);
-      } else if (Array.isArray(responseData)) {
-        setAccounts(responseData);
-        setTotalPages(1);
-        setTotal(responseData.length);
-      }
-    } catch (error) {
-      console.error('Failed to fetch accounts:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [axiosSecure, page, selectedRole, includeDeleted]);
-
-  useEffect(() => {
-    fetchAccounts();
-  }, [fetchAccounts]);
+  const list = usePaginatedList<AccountRecord>('/admin/accounts', {
+    client: axiosSecure,
+    params: { searchTerm: search.trim() || undefined, role: selectedRole === 'all' ? undefined : selectedRole.toUpperCase(), includeDeleted: String(includeDeleted) },
+  });
+  const { items: accounts, loading, page, totalPages, total, setPage, refresh: fetchAccounts } = list;
 
   const handleRoleChange = async () => {
     if (!roleModalAccount || !newRole) return;
@@ -137,8 +108,8 @@ export default function AdminAccountsPage() {
       setCreateData({ name: '', email: '', password: '', role: 'user', phone: '' });
       fetchAccounts();
       setTimeout(() => setActionSuccess(null), 4000);
-    } catch (error: any) {
-      setCreateError(error.response?.data?.message || 'Failed to create account.');
+    } catch (error: unknown) {
+      setCreateError(getApiErrorMessage(error, 'Failed to create account.'));
     } finally {
       setCreating(false);
     }
@@ -167,12 +138,7 @@ export default function AdminAccountsPage() {
     }
   };
 
-  const filteredAccounts = accounts.filter((acc) => {
-    const term = search.toLowerCase();
-    const nameMatch = acc.user?.name?.toLowerCase().includes(term);
-    const emailMatch = acc.email.toLowerCase().includes(term);
-    return !search || nameMatch || emailMatch;
-  });
+  const filteredAccounts = accounts;
 
   const getRoleBadgeVariant = (role: string) => {
     switch (role.toLowerCase()) {
@@ -221,6 +187,7 @@ export default function AdminAccountsPage() {
         </div>
       )}
 
+      {list.error && <p role="alert" className="text-sm text-destructive">{list.error}</p>}
       <Card className="border-border/60">
         <CardHeader className="p-4 sm:p-6 pb-2">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -305,7 +272,7 @@ export default function AdminAccountsPage() {
                         }`}
                       >
                         <td className="p-3.5 font-semibold text-foreground">
-                          {account.user?.name || 'N/A'}
+                          {(account.name || account.user?.name) || 'N/A'}
                         </td>
                         <td className="p-3.5 text-muted-foreground font-mono text-xs">
                           {account.email}
@@ -365,30 +332,9 @@ export default function AdminAccountsPage() {
 
           <div className="flex items-center justify-between p-4 border-t border-border/40 mt-4">
             <span className="text-xs text-muted-foreground font-medium">
-              Page {page} of {totalPages} ({total} Total)
+              Page {page} of {Math.max(1, totalPages)} ({total} Total)
             </span>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page <= 1}
-                onClick={() => setPage((p) => Math.max(p - 1, 1))}
-                className="h-8 text-xs font-semibold gap-1"
-              >
-                <ChevronLeft className="size-3.5" />
-                <span>Prev</span>
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page >= totalPages}
-                onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
-                className="h-8 text-xs font-semibold gap-1"
-              >
-                <span>Next</span>
-                <ChevronRight className="size-3.5" />
-              </Button>
-            </div>
+            <ListPagination page={page} totalPages={totalPages} onChange={setPage} loading={loading} />
           </div>
         </CardContent>
       </Card>

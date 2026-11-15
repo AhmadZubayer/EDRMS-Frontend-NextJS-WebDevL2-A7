@@ -104,6 +104,7 @@ export interface FieldReport {
 }
 
 export interface OrganizationOpportunity extends VolunteerGroup {
+  application_status?: 'PENDING' | 'APPROVED' | 'REJECTED' | null;
   organization_user_id: string;
   organization_user?: {
     id: string;

@@ -1,13 +1,11 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import {
   AlertTriangle,
   CheckCircle2,
   XCircle,
   Filter,
-  ChevronLeft,
-  ChevronRight,
   ShieldCheck,
   ShieldAlert,
   MapPin,
@@ -25,6 +23,9 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import ListPagination from '@/components/list-pagination';
+import SearchBar from '@/components/searchbar';
+import { usePaginatedList } from '@/hooks/use-paginated-list';
 import useAxiosSecure from '@/app/hooks/useAxiosSecure';
 
 interface DisasterRecord {
@@ -40,12 +41,8 @@ interface DisasterRecord {
 
 export default function AdminDisastersPage() {
   const axiosSecure = useAxiosSecure();
-  const [disasters, setDisasters] = useState<DisasterRecord[]>([]);
-  const [loading, setLoading] = useState(true);
+
   const [verifiedFilter, setVerifiedFilter] = useState<string>('all');
-  const [page, setPage] = useState<number>(1);
-  const [totalPages, setTotalPages] = useState<number>(1);
-  const [total, setTotal] = useState<number>(0);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   // Create Modal
@@ -59,35 +56,12 @@ export default function AdminDisastersPage() {
   });
   const [creating, setCreating] = useState(false);
 
-  const fetchDisasters = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params: Record<string, any> = { page, limit: 10 };
-      if (verifiedFilter !== 'all') {
-        params.verified = verifiedFilter === 'verified' ? 'true' : 'false';
-      }
-      const res = await axiosSecure.get('/admin/disasters', { params });
-      const responseData = res.data?.data || res.data;
-
-      if (responseData?.data) {
-        setDisasters(responseData.data);
-        setTotalPages(responseData.meta?.totalPages || 1);
-        setTotal(responseData.meta?.total || responseData.data.length);
-      } else if (Array.isArray(responseData)) {
-        setDisasters(responseData);
-        setTotalPages(1);
-        setTotal(responseData.length);
-      }
-    } catch (error) {
-      console.error('Failed to fetch disasters:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [axiosSecure, page, verifiedFilter]);
-
-  useEffect(() => {
-    fetchDisasters();
-  }, [fetchDisasters]);
+  const [search, setSearch] = useState('');
+  const list = usePaginatedList<DisasterRecord>('/admin/disasters', {
+    client: axiosSecure,
+    params: { searchTerm: search.trim() || undefined, verified: verifiedFilter === 'all' ? undefined : String(verifiedFilter === 'verified') },
+  });
+  const { items: disasters, loading, page, totalPages, total, setPage, refresh: fetchDisasters } = list;
 
   const handleCreateDisaster = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -156,8 +130,10 @@ export default function AdminDisastersPage() {
         </div>
       )}
 
+      {list.error && <p role="alert" className="text-sm text-destructive">{list.error}</p>}
       <Card className="border-border/60">
         <CardHeader className="p-4 sm:p-6 pb-2">
+          <SearchBar value={search} onChange={setSearch} onSubmit={list.refresh} placeholder="Search results..." />
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-2">
               <Filter className="size-4 text-muted-foreground" />
@@ -273,30 +249,9 @@ export default function AdminDisastersPage() {
 
           <div className="flex items-center justify-between p-4 border-t border-border/40 mt-4">
             <span className="text-xs text-muted-foreground font-medium">
-              Page {page} of {totalPages} ({total} Total)
+              Page {page} of {Math.max(1, totalPages)} ({total} Total)
             </span>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page <= 1}
-                onClick={() => setPage((p) => Math.max(p - 1, 1))}
-                className="h-8 text-xs font-semibold gap-1"
-              >
-                <ChevronLeft className="size-3.5" />
-                <span>Prev</span>
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page >= totalPages}
-                onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
-                className="h-8 text-xs font-semibold gap-1"
-              >
-                <span>Next</span>
-                <ChevronRight className="size-3.5" />
-              </Button>
-            </div>
+            <ListPagination page={page} totalPages={totalPages} onChange={setPage} loading={loading} />
           </div>
         </CardContent>
       </Card>
