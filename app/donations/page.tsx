@@ -1,5 +1,7 @@
 'use client';
 
+import { useUrlState } from '@/hooks/use-url-state';
+import dynamic from 'next/dynamic';
 import React, { useEffect, useState, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { HeartHandshake, Plus } from 'lucide-react';
@@ -12,8 +14,8 @@ import { publicApi } from '@/lib/api';
 import useAuth from '@/hooks/use-auth';
 import DonationCard from '@/components/donations/donation-card';
 import { DonationCampaign } from '@/components/donations/types';
-import AddDonationDrawer from '@/components/donations/add-donation-drawer';
-import { generateDonationReceipt } from '@/utils/generate-donation-receipt';
+const AddDonationDrawer = dynamic(() => import('@/components/donations/add-donation-drawer'), { ssr: false });
+import { generateDonationReceipt } from '@/utils/lazy-donation-receipt';
 
 const DonationsContent = () => {
   const router = useRouter();
@@ -27,7 +29,8 @@ const DonationsContent = () => {
   const [campaigns, setCampaigns] = useState<DonationCampaign[]>([]);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [urlSearch, setUrlSearch] = useUrlState('q');
+  const [searchTerm, setSearchTerm] = useState(urlSearch);
 
   const fetchCampaigns = useCallback(async (search?: string) => {
     try {
@@ -46,11 +49,12 @@ const DonationsContent = () => {
   }, []);
 
   useEffect(() => {
-    fetchCampaigns();
+    fetchCampaigns(searchTerm);
   }, [fetchCampaigns]);
 
   const handleSearchChange = (val: string) => {
     setSearchTerm(val);
+    setUrlSearch(val);
     fetchCampaigns(val);
   };
 
