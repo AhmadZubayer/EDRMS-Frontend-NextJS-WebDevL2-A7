@@ -1,6 +1,9 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import PageSkeleton from '@/components/page-skeleton';
+import { useUrlState } from '@/hooks/use-url-state';
+import dynamic from 'next/dynamic';
+import React, { useEffect, useState, useCallback, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { AlertCircle, Plus } from 'lucide-react';
 import Navbar from '@/components/navbar';
@@ -11,10 +14,10 @@ import { publicApi } from '@/lib/api';
 import useAuth from '@/hooks/use-auth';
 import RescueRequestCard from '@/components/rescue-requests/rescue-request-card';
 import { RescueRequest } from '@/components/rescue-requests/types';
-import RescueRequestDetailsDrawer from '@/components/rescue-requests/rescue-request-details-drawer';
-import AddRescueRequestDrawer from '@/components/rescue-requests/add-rescue-request-drawer';
+const RescueRequestDetailsDrawer = dynamic(() => import('@/components/rescue-requests/rescue-request-details-drawer'), { ssr: false });
+const AddRescueRequestDrawer = dynamic(() => import('@/components/rescue-requests/add-rescue-request-drawer'), { ssr: false });
 
-const RescueRequestsPage = () => {
+const RescueRequestsPageContent = () => {
   const router = useRouter();
   const { user } = useAuth();
   const [requests, setRequests] = useState<RescueRequest[]>([]);
@@ -22,7 +25,8 @@ const RescueRequestsPage = () => {
   const [editingRequest, setEditingRequest] = useState<RescueRequest | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [urlSearch, setUrlSearch] = useUrlState('q');
+  const [searchTerm, setSearchTerm] = useState(urlSearch);
 
   const fetchRescueRequests = useCallback(async (search?: string) => {
     try {
@@ -41,11 +45,12 @@ const RescueRequestsPage = () => {
   }, []);
 
   useEffect(() => {
-    fetchRescueRequests();
+    fetchRescueRequests(searchTerm);
   }, [fetchRescueRequests]);
 
   const handleSearchChange = (val: string) => {
     setSearchTerm(val);
+    setUrlSearch(val);
     fetchRescueRequests(val);
   };
 
@@ -165,5 +170,11 @@ const RescueRequestsPage = () => {
     </div>
   );
 };
+
+const RescueRequestsPage = () => (
+  <Suspense fallback={<PageSkeleton />}>
+    <RescueRequestsPageContent />
+  </Suspense>
+);
 
 export default RescueRequestsPage;
