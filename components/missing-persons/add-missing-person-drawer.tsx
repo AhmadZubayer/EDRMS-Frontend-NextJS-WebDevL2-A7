@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { isAxiosError } from 'axios';
 import { Upload, Calendar as CalendarIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from 'cn';
@@ -94,7 +95,7 @@ const AddMissingPersonDrawer = ({
       gender,
       lastSeenLocation,
       lastSeenDate,
-      contactPhone: contactPhone || undefined,
+      contactPhone: contactPhone.trim() || undefined,
       description,
     });
 
@@ -113,14 +114,14 @@ const AddMissingPersonDrawer = ({
     try {
       setLoading(true);
       const formData = new FormData();
-      formData.append('full_name', fullName.trim());
-      formData.append('age', String(Number(age)));
-      formData.append('gender', gender);
-      formData.append('last_seen_location', lastSeenLocation.trim());
-      formData.append('last_seen_date', lastSeenDate);
-      formData.append('description', description.trim());
-      if (contactPhone.trim()) {
-        formData.append('contact_phone', contactPhone.trim());
+      formData.append('fullName', result.data.fullName);
+      formData.append('age', String(Number(result.data.age)));
+      formData.append('gender', result.data.gender);
+      formData.append('lastSeenLocation', result.data.lastSeenLocation);
+      formData.append('lastSeenDate', result.data.lastSeenDate);
+      formData.append('description', result.data.description);
+      if (result.data.contactPhone) {
+        formData.append('contactPhone', result.data.contactPhone);
       }
       if (photoFile) {
         formData.append('file', photoFile);
@@ -151,10 +152,21 @@ const AddMissingPersonDrawer = ({
       resetForm();
       onOpenChange(false);
       onSuccess();
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const data = isAxiosError(err) ? err.response?.data : undefined;
+      const fieldErrors: Record<string, string> = {};
+      if (Array.isArray(data?.errorDetails)) {
+        for (const issue of data.errorDetails) {
+          if (typeof issue?.field === 'string' && typeof issue?.message === 'string') {
+            fieldErrors[issue.field] = issue.message;
+          }
+        }
+      }
+      setErrors(fieldErrors);
       const message =
-        err.response?.data?.message ||
-        err.response?.data?.error ||
+        Object.values(fieldErrors).join(' ') ||
+        data?.message ||
+        data?.error ||
         (editPerson ? 'Failed to update report.' : 'Failed to report missing person.');
       setServerError(Array.isArray(message) ? message[0] : message);
     } finally {
@@ -206,6 +218,8 @@ const AddMissingPersonDrawer = ({
                 id="age"
                 type="number"
                 min="0"
+                max="130"
+                step="1"
                 placeholder="e.g. 25"
                 value={age}
                 onChange={(e) => setAge(e.target.value)}
@@ -294,6 +308,9 @@ const AddMissingPersonDrawer = ({
                 onChange={(e) => setContactPhone(e.target.value)}
 
               />
+              {errors.contactPhone && (
+                <p className="text-xs text-destructive">{errors.contactPhone}</p>
+              )}
             </div>
           </div>
 
