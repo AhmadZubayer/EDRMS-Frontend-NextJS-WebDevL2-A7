@@ -1,5 +1,6 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Trash2, Plus, MessageSquare } from 'lucide-react';
@@ -12,7 +13,7 @@ import useAuth from '@/hooks/use-auth';
 import { axiosSecure, publicApi } from '@/lib/api';
 import EditProfileDrawer, { UserProfileData } from '@/components/profile/edit-profile-drawer';
 import { CommunityPost } from '@/components/community/types';
-import AddCommunityPostDrawer from '@/components/community/add-community-post-drawer';
+const AddCommunityPostDrawer = dynamic(() => import('@/components/community/add-community-post-drawer'), { ssr: false });
 import DashboardFrame from '@/components/profile/dashboard-frame';
 import { getApiErrorMessage } from '@/utils/api-error';
 const formatTrashDate = (dateStr?: string) => {

@@ -1,5 +1,6 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useEffect, useState, useCallback } from 'react';
 import { FileEdit, Trash2, Plus, Eye, MoreHorizontal, LifeBuoy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -12,8 +13,8 @@ import useAuth from '@/hooks/use-auth';
 import { axiosSecure } from '@/lib/api';
 import EditProfileDrawer, { UserProfileData } from '@/components/profile/edit-profile-drawer';
 import { RescueRequest } from '@/components/rescue-requests/types';
-import RescueRequestDetailsDrawer from '@/components/rescue-requests/rescue-request-details-drawer';
-import AddRescueRequestDrawer from '@/components/rescue-requests/add-rescue-request-drawer';
+const RescueRequestDetailsDrawer = dynamic(() => import('@/components/rescue-requests/rescue-request-details-drawer'), { ssr: false });
+const AddRescueRequestDrawer = dynamic(() => import('@/components/rescue-requests/add-rescue-request-drawer'), { ssr: false });
 import DashboardFrame from '@/components/profile/dashboard-frame';
 import { getApiErrorMessage } from '@/utils/api-error';
 

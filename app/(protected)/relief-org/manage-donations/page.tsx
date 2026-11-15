@@ -1,5 +1,6 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useEffect, useState, useCallback } from 'react';
 import { Plus, HeartHandshake } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -10,8 +11,8 @@ import useAuth from '@/hooks/use-auth';
 import { axiosSecure, publicApi } from '@/lib/api';
 import EditProfileDrawer, { UserProfileData } from '@/components/profile/edit-profile-drawer';
 import { DonationCampaign } from '@/components/donations/types';
-import AddDonationDrawer from '@/components/donations/add-donation-drawer';
-import CampaignProgressDrawer from '@/components/donations/campaign-progress-drawer';
+const AddDonationDrawer = dynamic(() => import('@/components/donations/add-donation-drawer'), { ssr: false });
+const CampaignProgressDrawer = dynamic(() => import('@/components/donations/campaign-progress-drawer'), { ssr: false });
 import DashboardFrame from '@/components/profile/dashboard-frame';
 import { getApiErrorMessage } from '@/utils/api-error';
 

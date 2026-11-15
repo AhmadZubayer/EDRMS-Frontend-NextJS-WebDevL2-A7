@@ -1,5 +1,6 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, AlertTriangle } from 'lucide-react';
@@ -11,7 +12,7 @@ import useAuth from '@/hooks/use-auth';
 import { axiosSecure, publicApi } from '@/lib/api';
 import EditProfileDrawer, { UserProfileData } from '@/components/profile/edit-profile-drawer';
 import { Disaster } from '@/components/disaster/types';
-import AddDisasterDrawer from '@/components/disaster/add-disaster-drawer';
+const AddDisasterDrawer = dynamic(() => import('@/components/disaster/add-disaster-drawer'), { ssr: false });
 import DashboardFrame from '@/components/profile/dashboard-frame';
 import { getApiErrorMessage } from '@/utils/api-error';
 
@@ -30,7 +31,7 @@ const ReliefOrgManageDisasterPage = () => {
     try {
       const [profileResult, disastersResult] = await Promise.allSettled([
         axiosSecure.get('/users/profile'),
-        publicApi.get('/disaster')
+        publicApi.get('/disasters')
       ]);
       if (profileResult.status === 'fulfilled') {
         const data = profileResult.value.data?.data || profileResult.value.data;

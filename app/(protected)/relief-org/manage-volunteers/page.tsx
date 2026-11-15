@@ -1,5 +1,6 @@
-﻿'use client';
+'use client';
 
+import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useState } from 'react';
 import { Plus, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -21,7 +22,7 @@ import {
   OrganizationJoin,
   formatVolunteerValue,
 } from '@/components/volunteers/types';
-import AddVolunteerGroupDrawer from '@/components/volunteers/add-volunteer-group-drawer';
+const AddVolunteerGroupDrawer = dynamic(() => import('@/components/volunteers/add-volunteer-group-drawer'), { ssr: false });
 import OperationsDashboard, {
   LoadError,
 } from '@/components/volunteers/operations-dashboard';

@@ -1,5 +1,6 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useEffect, useState, useCallback } from 'react';
 import { User, FileEdit, Trash2, Plus, Eye, MoreHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -12,8 +13,8 @@ import useAuth from '@/hooks/use-auth';
 import { axiosSecure } from '@/lib/api';
 import EditProfileDrawer, { UserProfileData } from '@/components/profile/edit-profile-drawer';
 import { MissingPerson } from '@/components/missing-persons/missing-person-dialog';
-import MissingPersonDetailsDrawer from '@/components/missing-persons/missing-person-details-drawer';
-import AddMissingPersonDrawer from '@/components/missing-persons/add-missing-person-drawer';
+const MissingPersonDetailsDrawer = dynamic(() => import('@/components/missing-persons/missing-person-details-drawer'), { ssr: false });
+const AddMissingPersonDrawer = dynamic(() => import('@/components/missing-persons/add-missing-person-drawer'), { ssr: false });
 import DashboardFrame from '@/components/profile/dashboard-frame';
 import { getApiErrorMessage } from '@/utils/api-error';
 
