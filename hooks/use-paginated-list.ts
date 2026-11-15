@@ -86,8 +86,8 @@ export function usePaginatedList<T>(endpoint: string, {
     loading: enabled && result.key !== requestKey,
     error: result.key === requestKey ? result.error : '',
     page,
-    total: result.total,
-    totalPages: result.totalPages,
+    total: enabled ? result.total : 0,
+    totalPages: enabled ? result.totalPages : 0,
     setPage,
     refresh,
   };

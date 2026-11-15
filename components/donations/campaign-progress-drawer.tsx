@@ -97,23 +97,22 @@ const CampaignProgressDrawer = ({
   const backendUrl =
     process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(() => {
     if (!campaignId) return;
-    try {
-      const [txRes, campaignRes] = await Promise.all([
+    return Promise.all([
         axiosSecure.get(`/donations/campaigns/${campaignId}/transactions`),
         axiosSecure.get(`/donations/campaigns/${campaignId}`),
-      ]);
+      ]).then(([txRes, campaignRes]) => {
       const txData = txRes.data?.data || txRes.data || [];
       const campaignData = campaignRes.data?.data || campaignRes.data;
       setTransactions(Array.isArray(txData) ? txData : []);
       setTotalApproved(Number(campaignData?.totalPaidOut ?? 0));
       refreshApplications();
-    } catch {
+    }).catch(() => {
       setTransactions([]);
-    } finally {
+    }).finally(() => {
       setLoadingData(false);
-    }
+    });
   }, [campaignId, refreshApplications]);
 
   useEffect(() => {

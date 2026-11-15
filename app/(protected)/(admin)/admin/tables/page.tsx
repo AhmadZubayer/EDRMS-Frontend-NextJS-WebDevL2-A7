@@ -41,9 +41,8 @@ export default function AdminDatabaseExplorerPage() {
   // JSON View Drawer
   const [inspectRow, setInspectRow] = useState<Record<string, unknown> | null>(null);
 
-  const fetchTables = useCallback(async () => {
-    try {
-      const res = await axiosSecure.get('/admin/tables');
+  const fetchTables = useCallback(() => {
+    return axiosSecure.get('/admin/tables').then((res) => {
       const data = res.data?.data || res.data;
       if (Array.isArray(data)) {
         setTables(data);
@@ -51,11 +50,11 @@ export default function AdminDatabaseExplorerPage() {
           setSelectedTable(data[0].tableName);
         }
       }
-    } catch (error) {
+    }).catch((error: unknown) => {
       console.error('Failed to fetch database tables:', error);
-    } finally {
+    }).finally(() => {
       setLoadingTables(false);
-    }
+    });
   }, [axiosSecure, selectedTable]);
 
   const list = usePaginatedList<Record<string, unknown>>(`/admin/tables/${selectedTable ?? ''}`, {
@@ -91,7 +90,11 @@ export default function AdminDatabaseExplorerPage() {
         <Button
           variant="outline"
           size="sm"
-          onClick={fetchTables}
+          onClick={() => {
+            setLoadingTables(true);
+            void fetchTables();
+            list.refresh();
+          }}
           disabled={loadingTables}
           className="gap-2 shrink-0 self-start sm:self-auto"
         >

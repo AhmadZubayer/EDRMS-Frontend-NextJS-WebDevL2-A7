@@ -41,6 +41,9 @@ const AddCommunityPostDrawer = dynamic(() => import('@/components/community/add-
 import { toast } from '@/components/ui/toast';
 import useAuth from '@/hooks/use-auth';
 import { axiosSecure, publicApi } from '@/lib/api';
+import ListPagination from '@/components/list-pagination';
+import { usePaginatedList } from '@/hooks/use-paginated-list';
+import { getApiErrorMessage } from '@/utils/api-error';
 import { CommunityPost, PostComment } from '@/components/community/types';
 
 const CommunityPostDetailPage = () => {
@@ -51,9 +54,13 @@ const CommunityPostDetailPage = () => {
   const id = params?.id as string;
 
   const [post, setPost] = useState<CommunityPost | null>(null);
-  const [comments, setComments] = useState<PostComment[]>([]);
+  const commentsList = usePaginatedList<PostComment>(`/community-posts/${id}/comments`, {
+    client: publicApi,
+    enabled: Boolean(id),
+    pageSize: 20,
+  });
+  const { items: comments, loading: loadingComments, refresh: fetchComments } = commentsList;
   const [loading, setLoading] = useState(true);
-  const [loadingComments, setLoadingComments] = useState(false);
   const [newComment, setNewComment] = useState('');
   const [submittingComment, setSubmittingComment] = useState(false);
 
@@ -68,39 +75,22 @@ const CommunityPostDetailPage = () => {
   const backendUrl =
     process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
 
-  const fetchPost = useCallback(async () => {
+  const fetchPost = useCallback(() => {
     if (!id) return;
-    try {
-      setLoading(true);
-      const res = await publicApi.get(`/community-posts/${id}`);
+    return publicApi.get(`/community-posts/${id}`).then((res) => {
       const data = res.data?.data || res.data;
       setPost(data);
       setLikeCount(data?.CommunityResponse?.Reactions?.total || 0);
-    } catch {
+    }).catch(() => {
       setPost(null);
-    } finally {
+    }).finally(() => {
       setLoading(false);
-    }
+    });
   }, [id]);
-
-  const fetchComments = useCallback(async () => {
-    if (!id) return;
-    try {
-      setLoadingComments(true);
-      const res = await axiosSecure.get(`/community-posts/${id}/comments`);
-      const data = res.data?.data || res.data || [];
-      setComments(Array.isArray(data) ? data : []);
-    } catch {
-      setComments([]);
-    } finally {
-      setLoadingComments(false);
-    }
-  }, [id, axiosSecure]);
 
   useEffect(() => {
     fetchPost();
-    fetchComments();
-  }, [fetchPost, fetchComments]);
+  }, [fetchPost]);
 
   const handleReact = async () => {
     if (!user || !post) return;
@@ -139,12 +129,13 @@ const CommunityPostDetailPage = () => {
         timeout: 4000,
       });
       setNewComment('');
-      await fetchComments();
+      commentsList.setPage(Math.max(1, Math.ceil((commentsList.total + 1) / 20)));
+      fetchComments();
       await fetchPost();
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast.add({
         id: 'comment-detail-error',
-        title: err?.response?.data?.message || 'Failed to post comment.',
+        title: getApiErrorMessage(err, 'Failed to post comment.'),
         type: 'error',
         timeout: 4000,
       });
@@ -165,12 +156,12 @@ const CommunityPostDetailPage = () => {
         type: 'success',
         timeout: 4000,
       });
-      setComments((prev) => prev.filter((c) => c.id !== commentId));
+      fetchComments();
       await fetchPost();
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast.add({
         id: 'comment-detail-delete-error',
-        title: err?.response?.data?.message || 'Failed to delete comment.',
+        title: getApiErrorMessage(err, 'Failed to delete comment.'),
         type: 'error',
         timeout: 4000,
       });
@@ -190,10 +181,10 @@ const CommunityPostDetailPage = () => {
       });
       setIsTrashModalOpen(false);
       router.push('/community');
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast.add({
         id: 'post-trash-error',
-        title: err?.response?.data?.message || 'Failed to move post to trash.',
+        title: getApiErrorMessage(err, 'Failed to move post to trash.'),
         type: 'error',
         timeout: 4000,
       });
@@ -220,7 +211,7 @@ const CommunityPostDetailPage = () => {
     user &&
       post &&
       ((post.author_id && post.author_id === user.id) ||
-        ((post as any).userId && (post as any).userId === user.id) ||
+        ('userId' in post && post.userId === user.id) ||
         (post.postedBy?.name && post.postedBy?.name === user.name))
   );
 
@@ -427,7 +418,7 @@ const CommunityPostDetailPage = () => {
 
                     <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                       <MessageSquare className="size-4" />
-                      <span>{comments.length} Comments</span>
+                      <span>{commentsList.total} Comments</span>
                     </div>
                   </div>
                 </CardFooter>
@@ -440,7 +431,7 @@ const CommunityPostDetailPage = () => {
                   <div className="flex items-center justify-between">
                     <h2 className="text-sm font-medium text-foreground flex items-center gap-2">
                       <MessageSquare className="size-4 text-muted-foreground" />
-                      Comments ({comments.length})
+                      Comments ({commentsList.total})
                     </h2>
                   </div>
                 </CardHeader>
@@ -465,6 +456,7 @@ const CommunityPostDetailPage = () => {
                     </div>
                   </form>
 
+                  {commentsList.error && <p role="alert" className="text-sm text-destructive">{commentsList.error}</p>}
                   <div className="flex flex-col gap-3 max-h-[550px] overflow-y-auto pr-1">
                     {loadingComments ? (
                       <p className="text-center text-xs text-muted-foreground py-4">
@@ -520,6 +512,7 @@ const CommunityPostDetailPage = () => {
                       })
                     )}
                   </div>
+                  <ListPagination page={commentsList.page} totalPages={commentsList.totalPages} onChange={commentsList.setPage} loading={loadingComments} />
                 </CardContent>
               </Card>
             </div>
