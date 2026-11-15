@@ -4,7 +4,7 @@ import { Geist_Mono, Inter } from 'next/font/google';
 
 import { AuthProvider } from '@/contexts/auth-provider';
 import Footer from '@/components/footer';
-import ChatbotUI from '@/chatbot/chat-ui';
+import ChatbotUI from '@/components/lazy-chatbot';
 import { Toaster } from '@/components/ui/toast';
 import { TooltipProvider } from '@/components/ui/tooltip';
 
