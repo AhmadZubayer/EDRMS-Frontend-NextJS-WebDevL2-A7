@@ -56,24 +56,37 @@ Admins manage all accounts and verify or approve public warnings, posts, volunte
 * Dynamic Navbar with role-based navlinks.
 * Open Street Maps integration.
 
-## Backend
+### Implementation Highlights
 
-* Email notification using Mailer
-* Refresh Token authentication
-* Custom decorators
-* Global and custom exception handling
-* Searching, sorting
-* File upload (e.g., profile image or documents)
-* API documentation using Swagger
-* Logging using the NestJS Logger
-* Audit logs (Created By, Updated By, Deleted By)
-* Environment-based configuration using `.env` (NestJS Config)
-* File upload (e.g., profile image or documents)
-* Stripe Integration
+* Modern design, mobile responsiveness, and consistent theming [responsive public directories, dashboard layouts and sidebars, shared Tailwind theme tokens in `app/globals.css`, and global Google Sans typography through `app/layout.tsx` and `components/font-provider.tsx`].
+* Accessibility features [labelled search and navigation buttons, `aria-invalid` and `aria-describedby` on form fields, keyboard focus styles, and labelled MUI pagination in shared components].
+* Server/Client component split [server-rendered public list/detail `page.tsx` files and interactive `client.tsx` components in missing persons, rescue requests, disasters, donations, and community].
+* App Router features, shared layouts, and error boundaries [dynamic `[id]` routes, root/auth/protected/admin layouts, `app/loading.tsx`, `app/error.tsx`, and `app/not-found.tsx`].
+* Authentication flow, protected routes, and role-based UI for four roles [sign-in/OAuth and session state in `AuthProvider`; client-side guards in `RouteFallbackControl` and `RoleRoute`; role-specific navigation for User, Volunteer, Relief Org, and Admin].
+* Data fetching strategy and caching [fresh public SSR reads in `lib/server/public-data.ts`; account-scoped SWR list/profile caches in `usePaginatedList` and `useUserProfile`; cache refresh after successful writes in `lib/api.ts`].
+* Global state and loading states [authentication through React Context in `AuthProvider`; shared toast state in `components/ui/toast.tsx`; route skeletons and dashboard loading indicators].
+* Optimistic UI updates [community post likes update the displayed reaction state and count before the API request finishes in `components/community/community-post-card.tsx` and `app/community/[id]/client.tsx`].
+* Zod validation, user-friendly errors, and complex workflows [schemas in `lib/validations`; inline form errors for missing-person/rescue reports and registration; donation checkout, aid applications, and volunteer verification workflows].
+* Image optimization, lazy loading, and code splitting [Next.js `Image` in missing-person/community cards and public detail pages; dynamic imports for add/edit drawers and maps; chatbot code loaded on first open in `components/lazy-chatbot.tsx`].
+* URL state management with `useSearchParams` [search/filter query parameters through `hooks/use-url-state.ts`; donation payment return parameters in the success/cancel pages].
+* Component modularity, custom hooks, and TypeScript typing [shared UI components, `DashboardFrame`, typed record interfaces, and the `useAuth`, `usePaginatedList`, `useUserProfile`, and `useUrlState` hooks].
+* Working production URL, environment configuration, and automatic deployment [Vercel live URL above; `BACKEND_URL` rewrites in `next.config.ts`; environment variables for API/chat configuration; GitHub `main` pushes trigger Vercel deployments].
 
----
+# 3. Rendering & Caching
 
-# 3. Project Configuration
+Pages can combine server-rendered content with client-side interactions. The columns below list where each approach is used; entries in the same row do not imply a relationship.
+
+| SSR | CSR | Cached |
+| --- | --- | --- |
+| Missing persons directory and details: `/missing-persons`, `/missing-persons/[id]` | Public search, filters, MUI pagination, and add/edit drawers | Home page (`/`): statically prerendered HTML cached by Next.js |
+| Rescue requests directory and details: `/rescue-requests`, `/rescue-requests/[id]` | User, volunteer, relief organization, and admin dashboards: authenticated data fetched in the browser | `usePaginatedList`: SWR results keyed by account, endpoint, filters, and page; duplicate requests deduplicated for 2 seconds |
+| Disaster directory and details: `/disaster`, `/disaster/[id]` | Authentication, registration, and profile forms | `useUserProfile`: account-scoped SWR profile cache; duplicate requests deduplicated for 10 seconds |
+| Donation campaigns and details: `/donations`, `/donations/[id]` | Community comments and likes, donation/payment actions, and interactive maps | Public server fetches: React `cache()` deduplicates matching reads within a render request |
+| Community posts and details: `/community`, `/community/[id]` (public filters) | Chatbot UI: loaded on demand when opened; “Posted by You” community results load after authentication | Chatbot system prompt: local prompt files read once per production worker |
+
+Public server API requests use `cache: 'no-store'` so live records stay fresh between requests. Temporary server fetch failures fall back to client fetching. Client caches refresh on focus/reconnect and after successful writes; authentication changes clear cached data. Protected pages may have prerendered shells, while their private data loads client-side. SWR deduplication intervals control repeated requests, rather than setting a fixed data expiry time.
+
+# 4. Project Configuration
 
 ## Frontend
 
@@ -93,13 +106,126 @@ Admins manage all accounts and verify or approve public warnings, posts, volunte
 | Icons                | Lucide React                      |
 | Sliders & Carousels  | Swiper                            |
 
-# 4. Entity Relationship Diagram
+# 5. File Structure
 
-![Entity Relationship Diagram](files/er-diagram.jpg)
+Main frontend folders and representative files are shown below. Generated build output (`.next/`), installed dependencies (`node_modules/`), and local environment files are omitted.
+
+```text
+frontend/
+├── app/                              # Next.js App Router
+│   ├── (auth)/                       # Authentication and registration routes
+│   │   ├── forgot-password/
+│   │   ├── reset-password/
+│   │   ├── sign-in/
+│   │   ├── sign-up/
+│   │   ├── signup-as-relief-org/
+│   │   ├── verify-email/
+│   │   ├── volunteer-registration-form/
+│   │   └── layout.tsx
+│   ├── (protected)/                  # Role-protected dashboard routes
+│   │   ├── (admin)/
+│   │   │   ├── admin/                # Accounts, reports, moderation, verification
+│   │   │   └── layout.tsx
+│   │   ├── relief-org/               # Campaigns, disasters, volunteers, profile
+│   │   ├── user/                     # Personal reports, donations, applications
+│   │   ├── volunteer/                # Tasks, opportunities, groups, field reports
+│   │   ├── layout.tsx
+│   │   └── loading.tsx
+│   ├── api/chat/route.ts             # Gemini chatbot API handler
+│   ├── auth/callback/page.tsx        # Authentication callback
+│   ├── community/                    # Public posts and post details
+│   ├── contexts/AuthProvider.tsx     # Authentication context implementation
+│   ├── dashboard/page.tsx            # Dashboard entry route
+│   ├── disaster/                     # Public disasters and disaster details
+│   ├── donations/                    # Campaign directory and details
+│   │   ├── [id]/
+│   │   │   ├── client.tsx
+│   │   │   └── page.tsx
+│   │   ├── payment/
+│   │   │   ├── cancel/page.tsx
+│   │   │   └── success/page.tsx
+│   │   ├── client.tsx
+│   │   └── page.tsx
+│   ├── error/page.tsx                # Dedicated error page
+│   ├── hooks/                        # Existing auth/Axios hook entry points
+│   ├── lib/public-api.ts             # Public API client re-export
+│   ├── missing-persons/              # Public directory and person details
+│   ├── rescue-requests/              # Public directory and request details
+│   ├── error.tsx                     # Runtime error boundary
+│   ├── globals.css                   # Global styles and theme tokens
+│   ├── layout.tsx                    # Root layout and providers
+│   ├── loading.tsx                   # Route loading fallback
+│   ├── not-found.tsx                 # Not-found boundary
+│   └── page.tsx                      # Home page
+├── chatbot/                          # Chat UI, configuration, knowledge, tools
+│   ├── chat-ui.tsx
+│   ├── config.md
+│   ├── endpoints.md
+│   ├── knowledge.md
+│   └── skills.md
+├── components/
+│   ├── auth/                         # Auth forms and route/role guards
+│   ├── community/                    # Post cards, drawers, and types
+│   ├── disaster/                     # Disaster cards, drawers, and types
+│   ├── donations/                    # Campaign cards, drawers, and types
+│   ├── missing-persons/              # Reporting and details components
+│   ├── profile/                      # Dashboard frame and profile editing
+│   ├── rescue-requests/              # Rescue cards, drawers, and types
+│   ├── ui/                           # Shared UI primitives
+│   ├── volunteers/                   # Operational forms, tasks, groups, sidebar
+│   ├── font-provider.tsx
+│   ├── footer.tsx
+│   ├── lazy-chatbot.tsx
+│   ├── leaflet-map.tsx
+│   ├── list-pagination.tsx
+│   ├── navbar.tsx
+│   ├── page-skeleton.tsx
+│   ├── searchbar.tsx
+│   └── styled-registry.tsx
+├── contexts/auth-provider.tsx        # Shared authentication provider entry point
+├── files/                            # README diagrams and project documentation
+├── hooks/
+│   ├── use-auth.ts
+│   ├── use-mobile.ts
+│   ├── use-paginated-list.ts
+│   ├── use-url-state.ts
+│   └── use-user-profile.ts
+├── lib/
+│   ├── server/public-data.ts         # Fresh public server fetches
+│   ├── validations/                  # Zod form schemas
+│   ├── api.ts                        # Shared Axios clients and interceptors
+│   ├── api-records.ts                # API response normalization
+│   ├── client-cache.ts               # Client cache invalidation
+│   ├── dashboard-routes.tsx
+│   ├── date-format.ts
+│   ├── endpoints.ts
+│   ├── list-data.ts                  # Pagination query/response helpers
+│   ├── roles.ts
+│   └── utils.ts
+├── public/                           # Static assets
+├── scripts/
+│   ├── check-rendering.mjs           # SSR, styles, search, and caching checks
+│   └── check-routes.mjs              # Route smoke checks
+├── utils/                            # API errors and donation receipt generation
+├── components.json                   # UI generator configuration
+├── eslint.config.mjs
+├── next.config.ts                    # Next.js images, compiler, and API rewrites
+├── package-lock.json
+├── package.json
+├── postcss.config.mjs
+├── README.md
+└── tsconfig.json
+```
+
+The public `community/`, `disaster/`, `missing-persons/`, and `rescue-requests/` folders follow the same `page.tsx` + `client.tsx` and `[id]/page.tsx` + `[id]/client.tsx` pattern illustrated under `donations/`. Route group names in parentheses organize layouts without adding segments to the URL.
+
+# 6. Entity Relationship Diagram
+
+![Entity Relationship Diagram](files/DatabaseSchema.png)
 
 ---
 
-# 5. Functional Requirements
+# 7. Functional Requirements
 
 | No             | Name                                                    | Frontend URL                       | Backend Endpoint                                                                                                                   | Authorization                                      |
 | -------------- | ------------------------------------------------------- | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
