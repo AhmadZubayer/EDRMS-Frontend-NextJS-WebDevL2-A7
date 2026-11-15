@@ -1,5 +1,7 @@
 'use client';
 
+import dynamic from 'next/dynamic';
+import Image from 'next/image';
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -34,11 +36,11 @@ import {
 } from '@/components/ui/breadcrumb';
 import MuiModal from '@/components/mui-modal';
 import { toast } from '@/components/ui/toast';
-import LeafletMap from '@/components/leaflet-map';
+const LeafletMap = dynamic(() => import('@/components/leaflet-map'), { ssr: false });
 import { axiosSecure, publicApi } from '@/lib/api';
 import useAuth from '@/hooks/use-auth';
 import { RescueRequest } from '@/components/rescue-requests/types';
-import AddRescueRequestDrawer from '@/components/rescue-requests/add-rescue-request-drawer';
+const AddRescueRequestDrawer = dynamic(() => import('@/components/rescue-requests/add-rescue-request-drawer'), { ssr: false });
 
 const getUrgencyVariant = (urgency?: string) => {
   const u = urgency?.toUpperCase();
@@ -223,7 +225,9 @@ const RescueRequestDetailPage = () => {
                     >
                       {request.photo_url ? (
                         <>
-                          <img
+                          <Image
+                            width={1200}
+                            height={900}
                             src={request.photo_url}
                             alt="Rescue Scene"
                             className="size-full object-cover group-hover:scale-105 transition-transform duration-300"
@@ -488,7 +492,9 @@ const RescueRequestDetailPage = () => {
       >
         {request?.photo_url && (
           <div className="w-full flex items-center justify-center overflow-hidden rounded-lg bg-black/5">
-            <img
+            <Image
+              width={1200}
+              height={900}
               src={request.photo_url}
               alt="Rescue Scene"
               className="max-h-[75vh] w-auto object-contain rounded-lg"

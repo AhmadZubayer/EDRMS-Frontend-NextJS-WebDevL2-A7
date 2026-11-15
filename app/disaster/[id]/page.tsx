@@ -1,5 +1,6 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -26,11 +27,11 @@ import {
 } from '@/components/ui/breadcrumb';
 import MuiModal from '@/components/mui-modal';
 import { toast } from '@/components/ui/toast';
-import LeafletMap from '@/components/leaflet-map';
+const LeafletMap = dynamic(() => import('@/components/leaflet-map'), { ssr: false });
 import { axiosSecure, publicApi } from '@/lib/api';
 import useAuth from '@/hooks/use-auth';
 import { Disaster } from '@/components/disaster/types';
-import AddDisasterDrawer from '@/components/disaster/add-disaster-drawer';
+const AddDisasterDrawer = dynamic(() => import('@/components/disaster/add-disaster-drawer'), { ssr: false });
 
 const DisasterDetailPage = () => {
   const params = useParams();
@@ -52,7 +53,7 @@ const DisasterDetailPage = () => {
   const fetchDisaster = async () => {
     try {
       setLoading(true);
-      const res = await publicApi.get(`/disaster/${id}`);
+      const res = await publicApi.get(`/disasters/${id}`);
       const data = res.data?.data || res.data;
       setDisaster(data);
     } catch {
@@ -103,7 +104,7 @@ const DisasterDetailPage = () => {
     if (!disaster) return;
     try {
       setActionLoading(true);
-      await axiosSecure.patch(`/disaster/${disaster.id}/mark-safe`);
+      await axiosSecure.patch(`/disasters/${disaster.id}/mark-safe`);
       toast.add({
         id: `disaster-safe-${disaster.id}`,
         title: `Disaster alert "${disaster.disaster_name}" marked as safe.`,
@@ -121,7 +122,7 @@ const DisasterDetailPage = () => {
     if (!disaster) return;
     try {
       setActionLoading(true);
-      await axiosSecure.delete(`/disaster/${disaster.id}`);
+      await axiosSecure.delete(`/disasters/${disaster.id}`);
       toast.add({
         id: `disaster-delete-${disaster.id}`,
         title: `Disaster alert "${disaster.disaster_name}" deleted.`,

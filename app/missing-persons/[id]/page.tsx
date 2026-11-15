@@ -1,5 +1,7 @@
 'use client';
 
+import dynamic from 'next/dynamic';
+import Image from 'next/image';
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -33,7 +35,7 @@ import { toast } from '@/components/ui/toast';
 import { axiosSecure, publicApi } from '@/lib/api';
 import useAuth from '@/hooks/use-auth';
 import { MissingPerson } from '@/components/missing-persons/missing-person-dialog';
-import AddMissingPersonDrawer from '@/components/missing-persons/add-missing-person-drawer';
+const AddMissingPersonDrawer = dynamic(() => import('@/components/missing-persons/add-missing-person-drawer'), { ssr: false });
 
 const MissingPersonDetailPage = () => {
   const params = useParams();
@@ -190,7 +192,9 @@ const MissingPersonDetailPage = () => {
                   >
                     {person.photo_url ? (
                       <>
-                        <img
+                        <Image
+                          width={1200}
+                          height={900}
                           src={person.photo_url}
                           alt={person.full_name}
                           className="size-full object-cover group-hover:scale-105 transition-transform duration-300"
@@ -396,7 +400,9 @@ const MissingPersonDetailPage = () => {
       >
         {person?.photo_url && (
           <div className="w-full flex items-center justify-center overflow-hidden rounded-lg bg-black/5">
-            <img
+            <Image
+              width={1200}
+              height={900}
               src={person.photo_url}
               alt={person.full_name}
               className="max-h-[75vh] w-auto object-contain rounded-lg"

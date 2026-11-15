@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import React, { useEffect, useState, Suspense } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -49,7 +50,7 @@ import useAuth from '@/hooks/use-auth';
 import { DonationCampaign } from '@/components/donations/types';
 import { makeDonationSchema } from '@/lib/validations/make-donation-schema';
 import { applyAidSchema } from '@/lib/validations/apply-aid-schema';
-import { generateDonationReceipt } from '@/utils/generate-donation-receipt';
+import { generateDonationReceipt } from '@/utils/lazy-donation-receipt';
 
 const chartConfig = {
   amount: {
@@ -532,7 +533,9 @@ const DonationDetailContent = () => {
               <div className="w-full space-y-5">
                 {photoFullUrl ? (
                   <div className="w-full h-72 sm:h-80 rounded-lg overflow-hidden border border-border shadow-sm bg-muted/20">
-                    <img
+                    <Image
+                      width={1200}
+                      height={800}
                       src={photoFullUrl}
                       alt={campaign.title}
                       className="w-full h-full object-cover"

@@ -1,5 +1,7 @@
 'use client';
 
+import dynamic from 'next/dynamic';
+import Image from 'next/image';
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -35,7 +37,7 @@ import {
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
 import MuiModal from '@/components/mui-modal';
-import AddCommunityPostDrawer from '@/components/community/add-community-post-drawer';
+const AddCommunityPostDrawer = dynamic(() => import('@/components/community/add-community-post-drawer'), { ssr: false });
 import { toast } from '@/components/ui/toast';
 import useAuth from '@/hooks/use-auth';
 import { axiosSecure, publicApi } from '@/lib/api';
@@ -392,7 +394,9 @@ const CommunityPostDetailPage = () => {
                             key={idx}
                             className="rounded-lg overflow-hidden border border-border bg-muted/20 flex items-center justify-center"
                           >
-                            <img
+                            <Image
+                              width={1200}
+                              height={800}
                               src={fullUrl}
                               alt={`Attachment ${idx + 1}`}
                               className="w-full h-auto object-cover max-h-96"
