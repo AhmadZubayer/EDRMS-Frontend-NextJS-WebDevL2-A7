@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import styled from 'styled-components';
@@ -166,7 +167,9 @@ const CommunityPostCard = ({ post, onPostUpdated }: CommunityPostCardProps) => {
 
             {hasMedia && firstMediaUrl && (
               <div className="size-12 sm:size-14 rounded-lg overflow-hidden border border-border bg-muted/20 shrink-0 relative group">
-                <img
+                <Image
+                  width={112}
+                  height={112}
                   src={firstMediaUrl}
                   alt="Post preview"
                   className="size-full object-cover group-hover:scale-105 transition-transform duration-200"

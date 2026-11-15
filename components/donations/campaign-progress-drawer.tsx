@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   DollarSign,
@@ -541,7 +542,9 @@ const CampaignProgressDrawer = ({
                   </span>
                   {isImageFile(selectedApplication.proof_document_url) ? (
                     <div className="border border-border rounded-lg overflow-hidden max-h-48 bg-muted/20 flex items-center justify-center">
-                      <img
+                      <Image
+                        width={600}
+                        height={400}
                         src={`${backendUrl}${selectedApplication.proof_document_url}`}
                         alt="Proof Document"
                         className="max-h-48 w-auto object-contain"

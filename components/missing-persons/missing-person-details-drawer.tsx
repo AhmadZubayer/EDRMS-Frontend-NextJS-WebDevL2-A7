@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
@@ -97,7 +98,9 @@ const MissingPersonDetailsDrawer = ({
       <div className="flex-1 overflow-y-auto p-5 space-y-5">
         <div className="relative aspect-video w-full rounded-lg bg-muted overflow-hidden border border-border flex items-center justify-center">
           {displayPerson.photo_url ? (
-            <img
+            <Image
+              width={800}
+              height={450}
               src={displayPerson.photo_url}
               alt={displayPerson.full_name}
               className="size-full object-cover"

@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
@@ -115,7 +116,9 @@ const RescueRequestDetailsDrawer = ({
       <div className="flex-1 overflow-y-auto p-5 space-y-5">
         <div className="relative aspect-video w-full rounded-lg bg-muted overflow-hidden border border-border flex items-center justify-center">
           {displayRequest.photo_url ? (
-            <img
+            <Image
+              width={800}
+              height={450}
               src={displayRequest.photo_url}
               alt={displayTitle}
               className="size-full object-cover"

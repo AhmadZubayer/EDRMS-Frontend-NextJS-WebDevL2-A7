@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import React from 'react';
 import Link from 'next/link';
 import { MapPin, Calendar, User, Phone, Lock } from 'lucide-react';
@@ -50,7 +51,9 @@ const MissingPersonDialog = ({
       <div className="space-y-4">
         <div className="relative aspect-video w-full bg-muted rounded-xl flex items-center justify-center overflow-hidden">
           {person.photo_url ? (
-            <img
+            <Image
+              width={800}
+              height={450}
               src={person.photo_url}
               alt={person.full_name}
               className="h-full w-full object-cover"

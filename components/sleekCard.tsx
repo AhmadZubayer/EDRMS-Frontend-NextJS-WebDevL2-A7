@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import React from 'react';
 import styled from 'styled-components';
 import { MapPin, User, Clock } from 'lucide-react';
@@ -64,7 +65,9 @@ const SleekCard = ({ person, onClick }: SleekCardProps) => {
           <div className="card__right">
             <div className="card__image">
               {person.photo_url && !imgError ? (
-                <img
+                <Image
+                  width={480}
+                  height={360}
                   src={person.photo_url}
                   alt={person.full_name}
                   className="profile-img"

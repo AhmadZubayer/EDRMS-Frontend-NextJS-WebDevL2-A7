@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import React from 'react';
 import styled from 'styled-components';
 import { MapPin, LifeBuoy, Clock } from 'lucide-react';
@@ -78,7 +79,9 @@ const RescueRequestCard = ({ request, onClick }: RescueRequestCardProps) => {
           <div className="card__right">
             <div className="card__image">
               {request.photo_url && !imgError ? (
-                <img
+                <Image
+                  width={480}
+                  height={360}
                   src={request.photo_url}
                   alt={displayTitle}
                   className="profile-img"

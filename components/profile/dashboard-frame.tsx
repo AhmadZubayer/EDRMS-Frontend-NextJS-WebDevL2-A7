@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import React from 'react';
 import { FileEdit, CheckCircle2, AlertCircle } from 'lucide-react';
 import Navbar from '@/components/navbar';
@@ -33,7 +34,9 @@ const DashboardFrame = ({ children, profile, role, tab, loading, togglingSafety,
             <div className="flex items-center gap-4">
               <div className="size-16 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-medium text-xl overflow-hidden shadow-inner">
                 {profile?.photo_url ? (
-                  <img
+                  <Image
+                    width={128}
+                    height={128}
                     src={profile.photo_url}
                     alt={profile.name}
                     className="size-full object-cover"
