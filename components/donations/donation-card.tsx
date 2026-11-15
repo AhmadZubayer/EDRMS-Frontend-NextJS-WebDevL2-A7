@@ -1,5 +1,7 @@
 'use client';
 
+import { formatDate } from '@/lib/date-format';
+
 import React from 'react';
 import styled from 'styled-components';
 import { Badge } from '@/components/ui/badge';
@@ -33,18 +35,18 @@ const DonationCard = ({ campaign, onClick }: DonationCardProps) => {
               </Badge>
             </div>
             <p className="card__description">
-              {campaign.start_date ? new Date(campaign.start_date).toLocaleDateString() : 'Active'} -{' '}
-              {campaign.end_date ? new Date(campaign.end_date).toLocaleDateString() : 'Ongoing'}
+              {campaign.start_date ? formatDate(campaign.start_date) : 'Active'} -{' '}
+              {campaign.end_date ? formatDate(campaign.end_date) : 'Ongoing'}
             </p>
           </div>
 
           <div className="card__progress-container">
             <div className="flex items-center justify-between text-xs mb-1">
               <span className="font-medium text-primary dark:text-primary">
-                ${collected.toLocaleString()} raised
+                ${collected.toLocaleString('en-US')} raised
               </span>
               <span className="text-muted-foreground text-xs">
-                Target: ${target.toLocaleString()}
+                Target: ${target.toLocaleString('en-US')}
               </span>
             </div>
             <div className="w-full h-2 rounded-full bg-muted overflow-hidden">

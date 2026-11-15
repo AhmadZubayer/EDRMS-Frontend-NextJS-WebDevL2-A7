@@ -11,19 +11,18 @@ import { toast } from '@/components/ui/toast';
 import useAuth from '@/hooks/use-auth';
 import { axiosSecure } from '@/lib/api';
 import { ENDPOINTS } from '@/lib/endpoints';
-import EditProfileDrawer, {
-  UserProfileData,
-} from '@/components/profile/edit-profile-drawer';
+import EditProfileDrawer from '@/components/profile/edit-profile-drawer';
 import VolunteerProfileForm from '@/components/volunteers/volunteer-profile-form';
 import { VolunteerProfile } from '@/components/volunteers/types';
 import DashboardFrame from '@/components/profile/dashboard-frame';
+import { useUserProfile } from '@/hooks/use-user-profile';
 import { getApiErrorMessage } from '@/utils/api-error';
 import { LoadError } from '@/components/volunteers/operations-dashboard';
 
 const VolunteerProfilePage = () => {
   const { user } = useAuth();
 
-  const [profile, setProfile] = useState<UserProfileData | null>(null);
+  const { profile, error: accountProfileError } = useUserProfile();
   const [loading, setLoading] = useState(true);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [togglingSafety, setTogglingSafety] = useState(false);
@@ -36,21 +35,10 @@ const VolunteerProfilePage = () => {
 
   const fetchPageData = useCallback(async () => {
     try {
-      const [profileResult, volunteerResult] = await Promise.allSettled([
-        axiosSecure.get('/users/profile'),
+      const [volunteerResult] = await Promise.allSettled([
         axiosSecure.get(ENDPOINTS.VOLUNTEERS.ME),
       ]);
       setProfileError('');
-      if (profileResult.status === 'fulfilled') {
-        const data = profileResult.value.data?.data || profileResult.value.data;
-        setProfile(data);
-      } else {
-        toast.add({
-          id: 'volunteer-profile-profile-error',
-          title: 'Failed to load profile. Please try again.',
-          type: 'error',
-        });
-      }
       if (volunteerResult.status === 'fulfilled') {
         const data =
           volunteerResult.value.data?.data || volunteerResult.value.data;
@@ -149,6 +137,7 @@ const VolunteerProfilePage = () => {
         onEdit={() => setIsEditOpen(true)}
         onToggleSafety={handleToggleSafety}
       >
+        {accountProfileError && <p role="alert" className="text-sm text-destructive">{accountProfileError}</p>}
         {profileError ? (
           <LoadError message={profileError} retry={fetchPageData} />
         ) : !volunteerProfile ? (

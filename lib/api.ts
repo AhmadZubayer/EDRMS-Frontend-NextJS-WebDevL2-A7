@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { normalizeApiRecord } from './api-records';
+import { invalidateApiCache } from './client-cache';
 
 const apiConfig = {
   baseURL: '/api',
@@ -24,6 +25,9 @@ for (const client of [publicApi, axiosSecure]) {
   });
   client.interceptors.response.use((response) => {
     const url = response.config.url || '';
+    if (response.config.method && !['get', 'head', 'options'].includes(response.config.method)) {
+      void invalidateApiCache(!url.startsWith('/auth/')).catch(() => {});
+    }
     if (/^\/(?:missing-persons|rescue-requests|disasters|donations|community-posts|trash|admin|volunteers)(?:[/?]|$)/.test(url)
       && !url.startsWith('/admin/tables') && response.data?.data) {
       response.data.data = normalizeApiRecord(response.data.data);

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { Trash2, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -9,10 +9,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { toast } from '@/components/ui/toast';
 import useAuth from '@/hooks/use-auth';
 import { axiosSecure } from '@/lib/api';
-import EditProfileDrawer, { UserProfileData } from '@/components/profile/edit-profile-drawer';
+import EditProfileDrawer from '@/components/profile/edit-profile-drawer';
 import DashboardFrame from '@/components/profile/dashboard-frame';
 import ListPagination from '@/components/list-pagination';
 import SearchBar from '@/components/searchbar';
+import { useUserProfile } from '@/hooks/use-user-profile';
 import { usePaginatedList } from '@/hooks/use-paginated-list';
 import { getApiErrorMessage } from '@/utils/api-error';
 interface TrashItemData {
@@ -53,7 +54,7 @@ const formatTrashDate = (dateStr?: string) => {
 const VolunteerTrashPage = () => {
   const { user } = useAuth();
 
-  const [profile, setProfile] = useState<UserProfileData | null>(null);
+  const { profile, loading, error: profileError, refresh: refreshProfile } = useUserProfile();
   const [search, setSearch] = useState('');
   const list = usePaginatedList<TrashItemData>('/trash', {
     client: axiosSecure,
@@ -61,36 +62,14 @@ const VolunteerTrashPage = () => {
     params: { searchTerm: search.trim() || undefined },
   });
   const { items: myTrashItems, refresh: refreshList } = list;
-  const [loading, setLoading] = useState(true);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [togglingSafety, setTogglingSafety] = useState(false);
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
 
-  const fetchPageData = useCallback(async () => {
-    refreshList();
-    try {
-      const [profileResult] = await Promise.allSettled([
-        axiosSecure.get('/users/profile')
-      ]);
-      if (profileResult.status === 'fulfilled') {
-        const data = profileResult.value.data?.data || profileResult.value.data;
-        setProfile(data);
-      } else {
-        toast.add({
-          id: 'trash-profile-error',
-          title: 'Failed to load profile. Please try again.',
-          type: 'error'
-        });
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, [refreshList]);
-  useEffect(() => {
-    if (user) {
-      fetchPageData();
-    }
-  }, [user, fetchPageData]);
+  const fetchPageData = useCallback(
+    () => Promise.all([refreshProfile(), refreshList()]),
+    [refreshProfile, refreshList],
+  );
 
   const handleRestore = async (id: string, title: string) => {
     try {
@@ -162,6 +141,7 @@ const VolunteerTrashPage = () => {
         onToggleSafety={handleToggleSafety}
       >
 
+        {profileError && <p role="alert" className="text-sm text-destructive">{profileError}</p>}
         <SearchBar value={search} onChange={setSearch} onSubmit={refreshList} placeholder="Search results..." />
         {list.error && <p role="alert" className="text-sm text-destructive">{list.error}</p>}
         <div className="space-y-4">

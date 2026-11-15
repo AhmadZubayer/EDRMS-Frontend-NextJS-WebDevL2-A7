@@ -1,5 +1,7 @@
 'use client';
 
+import { formatDateTime } from '@/lib/date-format';
+
 import React from 'react';
 import styled from 'styled-components';
 import { Badge } from '@/components/ui/badge';
@@ -12,8 +14,7 @@ interface DisasterCardProps {
 
 const formatImpactTime = (dateStr?: string) => {
   if (!dateStr) return 'N/A';
-  const d = new Date(dateStr);
-  return d.toLocaleString();
+  return formatDateTime(dateStr);
 };
 
 const DisasterCard = ({ disaster, onClick }: DisasterCardProps) => {

@@ -10,12 +10,13 @@ import { Badge } from '@/components/ui/badge';
 interface RescueRequestCardProps {
   request: RescueRequest;
   onClick: () => void;
+  receivedAt?: number;
 }
 
-const getDaysAgo = (dateStr?: string) => {
+const getDaysAgo = (dateStr: string | undefined, receivedAt: number) => {
   if (!dateStr) return 'Recently';
   const date = new Date(dateStr);
-  const now = new Date();
+  const now = new Date(receivedAt);
   const diffTime = Math.abs(now.getTime() - date.getTime());
   const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
   if (diffDays === 0) return 'Reported today';
@@ -31,7 +32,8 @@ const getStatusVariant = (status?: string) => {
   return 'outline';
 };
 
-const RescueRequestCard = ({ request, onClick }: RescueRequestCardProps) => {
+const RescueRequestCard = ({ request, onClick, receivedAt }: RescueRequestCardProps) => {
+  const [initialReceivedAt] = React.useState(() => receivedAt ?? Date.now());
   const [imgError, setImgError] = React.useState(false);
 
   const displayTitle =
@@ -62,7 +64,7 @@ const RescueRequestCard = ({ request, onClick }: RescueRequestCardProps) => {
               </div>
               <div className="info-item">
                 <Clock className="size-3 text-current shrink-0" />
-                <span className="truncate">{getDaysAgo(request.created_at)}</span>
+                <span className="truncate">{getDaysAgo(request.created_at, receivedAt ?? initialReceivedAt)}</span>
               </div>
             </div>
 

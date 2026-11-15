@@ -1,7 +1,8 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { publicApi } from '@/app/lib/public-api';
+import { invalidateApiCache } from '@/lib/client-cache';
 
 export type UserType = {
   id: string;
@@ -14,8 +15,8 @@ export type UserType = {
 interface AuthContextType {
   user: UserType;
   loading: boolean;
-  signInUser: (email: string, pass: string) => Promise<any>;
-  registerUser: (name: string, email: string, pass: string) => Promise<any>;
+  signInUser: (email: string, pass: string) => Promise<unknown>;
+  registerUser: (name: string, email: string, pass: string) => Promise<unknown>;
   logOut: () => Promise<void>;
   fetchCurrentUser: () => Promise<void>;
 }
@@ -32,30 +33,28 @@ export const AuthContext = createContext<AuthContextType>({
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<UserType>(null);
   const [loading, setLoading] = useState(true);
+  const authRequest = useRef(0);
 
-  const fetchCurrentUser = useCallback(async () => {
-    try {
-      const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
-      if (!token) {
-        setUser(null);
-        return;
-      }
-      const res = await publicApi.get('/auth/me');
-      const userData = res.data?.data || res.data;
-      setUser(userData);
-    } catch (err) {
-      console.error('fetchCurrentUser failed:', err);
-      setUser(null);
-    } finally {
-      setLoading(false);
-    }
+  const fetchCurrentUser = useCallback(() => {
+    const requestId = ++authRequest.current;
+    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+    const request = token ? publicApi.get('/auth/me') : Promise.resolve(null);
+    return request.then((response) => {
+      if (requestId !== authRequest.current) return;
+      setUser(response ? response.data?.data ?? response.data : null);
+    }).catch(() => {
+      if (requestId === authRequest.current) setUser(null);
+    }).finally(() => {
+      if (requestId === authRequest.current) setLoading(false);
+    });
   }, []);
 
   useEffect(() => {
     fetchCurrentUser();
   }, [fetchCurrentUser]);
 
-  const signInUser = async (email: string, pass: string) => {
+  const signInUser = useCallback(async (email: string, pass: string) => {
+    authRequest.current += 1;
     setLoading(true);
     try {
       const res = await publicApi.post(
@@ -72,9 +71,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [fetchCurrentUser]);
 
-  const registerUser = async (name: string, email: string, pass: string) => {
+  const registerUser = useCallback(async (name: string, email: string, pass: string) => {
     setLoading(true);
     try {
       const res = await publicApi.post(
@@ -86,9 +85,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const logOut = async () => {
+  const logOut = useCallback(async () => {
+    authRequest.current += 1;
     setLoading(true);
     try {
       await publicApi.post('/auth/logout');
@@ -98,18 +98,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         localStorage.removeItem('access_token');
       }
       setUser(null);
+      void invalidateApiCache(false).catch(() => {});
       setLoading(false);
     }
-  };
+  }, []);
 
-  const authInfo = {
+  const authInfo = useMemo(() => ({
     user,
     loading,
     signInUser,
     registerUser,
     logOut,
     fetchCurrentUser,
-  };
+  }), [user, loading, signInUser, registerUser, logOut, fetchCurrentUser]);
 
   return (
     <AuthContext.Provider value={authInfo}>

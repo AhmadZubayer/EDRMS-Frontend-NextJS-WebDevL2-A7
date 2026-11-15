@@ -1,14 +1,15 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useState } from 'react';
 import { FileEdit, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/components/ui/toast';
 import useAuth from '@/hooks/use-auth';
 import { axiosSecure } from '@/lib/api';
-import EditProfileDrawer, { UserProfileData } from '@/components/profile/edit-profile-drawer';
+import EditProfileDrawer from '@/components/profile/edit-profile-drawer';
 import DashboardFrame from '@/components/profile/dashboard-frame';
+import { useUserProfile } from '@/hooks/use-user-profile';
 import { getApiErrorMessage } from '@/utils/api-error';
 const renderValue = (val?: string | number | null) => {
   if (val !== undefined && val !== null && String(val).trim().length > 0) {
@@ -19,8 +20,7 @@ const renderValue = (val?: string | number | null) => {
 const VolunteerPersonalProfilePage = () => {
   const { user } = useAuth();
 
-  const [profile, setProfile] = useState<UserProfileData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { profile, loading, error: profileError, refresh: fetchPageData } = useUserProfile();
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [togglingSafety, setTogglingSafety] = useState(false);
 
@@ -35,30 +35,7 @@ const VolunteerPersonalProfilePage = () => {
       ? `${profile.gps_lat}, ${profile.gps_lng}`
       : null;
 
-  const fetchPageData = useCallback(async () => {
-    try {
-      const [profileResult] = await Promise.allSettled([
-        axiosSecure.get('/users/profile')
-      ]);
-      if (profileResult.status === 'fulfilled') {
-        const data = profileResult.value.data?.data || profileResult.value.data;
-        setProfile(data);
-      } else {
-        toast.add({
-          id: 'profile-profile-error',
-          title: 'Failed to load profile. Please try again.',
-          type: 'error'
-        });
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-  useEffect(() => {
-    if (user) {
-      fetchPageData();
-    }
-  }, [user, fetchPageData]);
+
 
   const handleToggleSafety = async () => {
     try {
@@ -83,6 +60,7 @@ const VolunteerPersonalProfilePage = () => {
         onEdit={() => setIsEditOpen(true)}
         onToggleSafety={handleToggleSafety}
       >
+        {profileError && <p role="alert" className="text-sm text-destructive">{profileError}</p>}
         <div className="space-y-6">
           <div className="rounded-lg border border-border bg-card p-4 space-y-6">
             <div className="border-b border-border pb-4 flex items-center justify-between">

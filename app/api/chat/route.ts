@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
+import { normalizeApiRecord } from '@/lib/api-records';
 
 
-function getSystemPrompt(): string {
+function buildSystemPrompt(): string {
   try {
     const chatbotDir = path.join(process.cwd(), 'chatbot');
     const config = fs.existsSync(path.join(chatbotDir, 'config.md'))
@@ -38,10 +39,17 @@ ${endpoints}
   }
 }
 
+let systemPrompt: string | undefined;
+
+function getSystemPrompt() {
+  if (process.env.NODE_ENV !== 'production') return buildSystemPrompt();
+  return systemPrompt ??= buildSystemPrompt();
+}
+
 // Helper to fetch live database records dynamically from the backend APIs
 async function fetchLiveDataForMessage(message: string): Promise<string> {
   const lower = message.toLowerCase();
-  const backendBase = process.env.BACKEND_URL || 'http://localhost:5000';
+  const backendBase = process.env.BACKEND_URL || 'https://edrms-express-server-ahmadzubayer.vercel.app';
   const liveSections: string[] = [];
 
   const shouldFetchMissing =
@@ -93,7 +101,7 @@ async function fetchLiveDataForMessage(message: string): Promise<string> {
       fetch(`${backendBase}/api/missing-persons`, { cache: 'no-store' })
         .then((r) => r.json())
         .then((res) => {
-          const list = Array.isArray(res) ? res : res?.data || [];
+          const list = normalizeApiRecord(Array.isArray(res) ? res : res?.data || []) as Record<string, unknown>[];
           if (list.length > 0) {
             liveSections.push(
               `### LIVE MISSING PERSON REPORTS IN DATABASE:\n${JSON.stringify(
@@ -123,7 +131,7 @@ async function fetchLiveDataForMessage(message: string): Promise<string> {
       fetch(`${backendBase}/api/rescue-requests`, { cache: 'no-store' })
         .then((r) => r.json())
         .then((res) => {
-          const list = Array.isArray(res) ? res : res?.data || [];
+          const list = normalizeApiRecord(Array.isArray(res) ? res : res?.data || []) as Record<string, unknown>[];
           if (list.length > 0) {
             liveSections.push(
               `### LIVE RESCUE REQUESTS IN DATABASE:\n${JSON.stringify(
@@ -147,10 +155,10 @@ async function fetchLiveDataForMessage(message: string): Promise<string> {
 
   if (shouldFetchDisaster) {
     promises.push(
-      fetch(`${backendBase}/api/disaster`, { cache: 'no-store' })
+      fetch(`${backendBase}/api/disasters`, { cache: 'no-store' })
         .then((r) => r.json())
         .then((res) => {
-          const list = Array.isArray(res) ? res : res?.data || [];
+          const list = normalizeApiRecord(Array.isArray(res) ? res : res?.data || []) as Record<string, unknown>[];
           if (list.length > 0) {
             liveSections.push(
               `### LIVE ACTIVE DISASTERS IN DATABASE:\n${JSON.stringify(
@@ -176,7 +184,7 @@ async function fetchLiveDataForMessage(message: string): Promise<string> {
       fetch(`${backendBase}/api/donations/campaigns`, { cache: 'no-store' })
         .then((r) => r.json())
         .then((res) => {
-          const list = Array.isArray(res) ? res : res?.data || [];
+          const list = normalizeApiRecord(Array.isArray(res) ? res : res?.data || []) as Record<string, unknown>[];
           if (list.length > 0) {
             liveSections.push(
               `### LIVE DONATION CAMPAIGNS IN DATABASE:\n${JSON.stringify(

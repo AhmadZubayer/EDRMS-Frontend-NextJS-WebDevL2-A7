@@ -1,9 +1,11 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import { Geist_Mono, Google_Sans } from 'next/font/google';
+import { AppRouterCacheProvider } from '@mui/material-nextjs/v16-appRouter';
 
 import { AuthProvider } from '@/contexts/auth-provider';
 import FontProvider from '@/components/font-provider';
+import StyledRegistry from '@/components/styled-registry';
 import Footer from '@/components/footer';
 import ChatbotUI from '@/components/lazy-chatbot';
 import { Toaster } from '@/components/ui/toast';
@@ -39,19 +41,23 @@ const RootLayout = ({
       className={`${googleSans.variable} ${geistMono.variable} h-full font-sans antialiased`}
     >
       <body className="min-h-full">
-        <FontProvider>
-          <AuthProvider>
-            <TooltipProvider>
-              <Toaster>
-                <div className="flex min-h-screen flex-col">
-                  <div className="flex-1">{children}</div>
-                  <Footer />
-                  <ChatbotUI />
-                </div>
-              </Toaster>
-            </TooltipProvider>
-          </AuthProvider>
-        </FontProvider>
+        <AppRouterCacheProvider>
+          <StyledRegistry>
+            <FontProvider>
+              <AuthProvider>
+                <TooltipProvider>
+                  <Toaster>
+                    <div className="flex min-h-screen flex-col">
+                      <div className="flex-1">{children}</div>
+                      <Footer />
+                      <ChatbotUI />
+                    </div>
+                  </Toaster>
+                </TooltipProvider>
+              </AuthProvider>
+            </FontProvider>
+          </StyledRegistry>
+        </AppRouterCacheProvider>
       </body>
     </html>
   );

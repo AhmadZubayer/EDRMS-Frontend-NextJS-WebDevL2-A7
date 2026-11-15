@@ -1,0 +1,182 @@
+'use client';
+
+import ListPagination from '@/components/list-pagination';
+import type { ListSnapshot } from '@/lib/list-data';
+import { usePaginatedList } from '@/hooks/use-paginated-list';
+import { useUrlState } from '@/hooks/use-url-state';
+import dynamic from 'next/dynamic';
+import React, { useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { HeartHandshake, Plus } from 'lucide-react';
+import Navbar from '@/components/navbar';
+import SearchBar from '@/components/searchbar';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { toast } from '@/components/ui/toast';
+import { publicApi } from '@/lib/api';
+import useAuth from '@/hooks/use-auth';
+import DonationCard from '@/components/donations/donation-card';
+import { DonationCampaign } from '@/components/donations/types';
+const AddDonationDrawer = dynamic(() => import('@/components/donations/add-donation-drawer'), { ssr: false });
+import { generateDonationReceipt } from '@/utils/lazy-donation-receipt';
+
+const DonationsContent = ({ initialData }: { initialData?: ListSnapshot<DonationCampaign> }) => {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { user } = useAuth();
+
+  const paymentStatus = searchParams?.get('payment');
+  const sessionId = searchParams?.get('session_id');
+  const txId = searchParams?.get('tx_id');
+
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [searchTerm, setUrlSearch] = useUrlState('q');
+  const { items: campaigns, loading, error, page, totalPages, setPage, refresh: fetchCampaigns } =
+    usePaginatedList<DonationCampaign>('/donations/campaigns', { initialData, params: { searchTerm: searchTerm.trim() || undefined } });
+  const handleSearchChange = (val: string) => {
+    setUrlSearch(val);
+  };
+
+  const hasVerifiedRef = React.useRef(false);
+
+  useEffect(() => {
+    if (paymentStatus === 'success' && (sessionId || txId) && !hasVerifiedRef.current) {
+      hasVerifiedRef.current = true;
+      const verifyAndToast = async () => {
+        try {
+          const res = await publicApi.get(`/donations/payment/success?session_id=${sessionId || ''}&tx_id=${txId || ''}`);
+          const payload = res.data?.data || res.data;
+          fetchCampaigns();
+
+          toast.add({
+            id: 'donation-payment-success-toast',
+            title: 'Thank you for your contribution to the mankind.',
+            type: 'success',
+            timeout: 12000,
+            actionProps: {
+              children: 'Download Receipt',
+              onClick: () => {
+                generateDonationReceipt({
+                  receiptNo: payload.transaction_id || txId || 'TXN-EDRMS',
+                  date: new Date(payload.paid_at || Date.now()).toLocaleDateString('en-GB', {
+                    day: '2-digit',
+                    month: 'short',
+                    year: 'numeric',
+                  }),
+                  receivedFrom: payload.donor_name || (payload.is_anonymous ? 'Anonymous Donor' : 'Valued Donor'),
+                  contact: payload.donor_contact || (payload.is_anonymous ? 'Anonymous' : 'N/A'),
+                  donationAmount: Number(payload.amount || 0),
+                  paymentMethod: payload.payment_gateway || 'STRIPE',
+                  transactionId: payload.transaction_id || txId || 'N/A',
+                  campaignTitle: payload.campaign_title || 'Emergency Relief Fund',
+                  reliefOrg: payload.relief_org || 'Emergency Disaster Response Management System',
+                });
+              },
+            },
+          });
+
+          const url = new URL(window.location.href);
+          url.searchParams.delete('payment');
+          url.searchParams.delete('session_id');
+          url.searchParams.delete('tx_id');
+          window.history.replaceState({}, '', url.pathname + url.search);
+        } catch {
+        }
+      };
+      verifyAndToast();
+    }
+  }, [paymentStatus, sessionId, txId, fetchCampaigns]);
+
+  const handleAddClick = () => {
+    if (user?.role === 'RELIEF_ORG' || user?.role === 'ADMIN') {
+      setIsDrawerOpen(true);
+    } else {
+      router.push('/manage-donations');
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex flex-col bg-background">
+      <Navbar />
+
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-border pb-6">
+          <div>
+            <h1 className="text-3xl font-medium tracking-tight text-foreground">
+              Emergency Relief Funds & Donations
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Direct financial support, emergency aid funds, and rehabilitation campaigns for affected communities.
+            </p>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
+            {(user?.role === 'RELIEF_ORG' || user?.role === 'ADMIN') && (
+              <Button onClick={handleAddClick} >
+                <Plus className="size-4" />
+                Add Campaign
+              </Button>
+            )}
+
+            <SearchBar
+              value={searchTerm}
+              onChange={handleSearchChange}
+              onSubmit={() => fetchCampaigns()}
+              placeholder="Search campaigns, relief..."
+            />
+          </div>
+        </div>
+
+        {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+        {loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[1, 2, 3, 4, 5, 6].map((idx) => (
+              <div key={idx} className="p-4 rounded-lg border border-border bg-card space-y-3">
+                <div className="flex items-center justify-between">
+                  <Skeleton className="h-5 w-36" />
+                  <Skeleton className="h-5 w-16" />
+                </div>
+                <Skeleton className="h-3.5 w-full" />
+                <Skeleton className="h-3.5 w-4/5" />
+                <Skeleton className="h-3 w-full" />
+                <div className="flex items-center justify-between pt-1">
+                  <Skeleton className="h-4 w-20" />
+                  <Skeleton className="h-4 w-20" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : campaigns.length === 0 ? (
+          <div className="flex flex-col items-center justify-center p-12 text-center rounded-lg border border-dashed border-border bg-muted/10 space-y-3">
+            <HeartHandshake className="size-10 text-muted-foreground/60" />
+            <h3 className="text-sm font-medium">No relief campaigns found</h3>
+            <p className="text-xs text-muted-foreground max-w-sm">
+              {searchTerm
+                ? 'Try adjusting your search term to find matching campaigns.'
+                : 'There are currently no active donation campaigns in the system.'}
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {campaigns.map((campaign) => (
+              <DonationCard
+                key={campaign.id}
+                campaign={campaign}
+                onClick={() => router.push(`/donations/${campaign.id}`)}
+              />
+            ))}
+          </div>
+        )}
+        <ListPagination page={page} totalPages={totalPages} onChange={setPage} loading={loading} />
+      </main>
+
+      <AddDonationDrawer
+        open={isDrawerOpen}
+        onOpenChange={setIsDrawerOpen}
+        onSuccess={() => fetchCampaigns()}
+      />
+    </div>
+  );
+};
+
+export default DonationsContent;

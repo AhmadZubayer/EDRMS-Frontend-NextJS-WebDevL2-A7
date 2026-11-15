@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useEffect, useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { User, FileEdit, Trash2, Plus, Eye, MoreHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,20 +11,21 @@ import MuiModal from '@/components/mui-modal';
 import { toast } from '@/components/ui/toast';
 import useAuth from '@/hooks/use-auth';
 import { axiosSecure } from '@/lib/api';
-import EditProfileDrawer, { UserProfileData } from '@/components/profile/edit-profile-drawer';
+import EditProfileDrawer from '@/components/profile/edit-profile-drawer';
 import { MissingPerson } from '@/components/missing-persons/missing-person-dialog';
 const MissingPersonDetailsDrawer = dynamic(() => import('@/components/missing-persons/missing-person-details-drawer'), { ssr: false });
 const AddMissingPersonDrawer = dynamic(() => import('@/components/missing-persons/add-missing-person-drawer'), { ssr: false });
 import DashboardFrame from '@/components/profile/dashboard-frame';
 import ListPagination from '@/components/list-pagination';
 import SearchBar from '@/components/searchbar';
+import { useUserProfile } from '@/hooks/use-user-profile';
 import { usePaginatedList } from '@/hooks/use-paginated-list';
 import { getApiErrorMessage } from '@/utils/api-error';
 
 const ReliefOrgMissingPersonsPage = () => {
   const { user } = useAuth();
 
-  const [profile, setProfile] = useState<UserProfileData | null>(null);
+  const { profile, loading, error: profileError, refresh: refreshProfile } = useUserProfile();
   const [search, setSearch] = useState('');
   const list = usePaginatedList<MissingPerson>('/missing-persons/my', {
     client: axiosSecure,
@@ -32,7 +33,6 @@ const ReliefOrgMissingPersonsPage = () => {
     params: { searchTerm: search.trim() || undefined },
   });
   const { items: myMissingPersons, refresh: refreshList } = list;
-  const [loading, setLoading] = useState(true);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [togglingSafety, setTogglingSafety] = useState(false);
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
@@ -41,31 +41,10 @@ const ReliefOrgMissingPersonsPage = () => {
   const [isMissingPersonDrawerOpen, setIsMissingPersonDrawerOpen] = useState(false);
   const [confirmTrashItem, setConfirmTrashItem] = useState<MissingPerson | null>(null);
 
-  const fetchPageData = useCallback(async () => {
-    refreshList();
-    try {
-      const [profileResult] = await Promise.allSettled([
-        axiosSecure.get('/users/profile')
-      ]);
-      if (profileResult.status === 'fulfilled') {
-        const data = profileResult.value.data?.data || profileResult.value.data;
-        setProfile(data);
-      } else {
-        toast.add({
-          id: 'missing-persons-profile-error',
-          title: 'Failed to load profile. Please try again.',
-          type: 'error'
-        });
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, [refreshList]);
-  useEffect(() => {
-    if (user) {
-      fetchPageData();
-    }
-  }, [user, fetchPageData]);
+  const fetchPageData = useCallback(
+    () => Promise.all([refreshProfile(), refreshList()]),
+    [refreshProfile, refreshList],
+  );
 
   const handleToggleSafety = async () => {
     try {
@@ -117,6 +96,7 @@ const ReliefOrgMissingPersonsPage = () => {
         onToggleSafety={handleToggleSafety}
       >
 
+        {profileError && <p role="alert" className="text-sm text-destructive">{profileError}</p>}
         <SearchBar value={search} onChange={setSearch} onSubmit={refreshList} placeholder="Search results..." />
         {list.error && <p role="alert" className="text-sm text-destructive">{list.error}</p>}
         <div className="space-y-4">

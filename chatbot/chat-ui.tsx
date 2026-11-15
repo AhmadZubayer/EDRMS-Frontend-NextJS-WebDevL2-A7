@@ -55,14 +55,14 @@ Ask me anything in English, Bangla, or Banglish.`,
 
 const emptySubscribe = () => () => {};
 
-export default function ChatbotUI() {
+export default function ChatbotUI({ initialOpen = false }: { initialOpen?: boolean }) {
   const isMounted = React.useSyncExternalStore(
     emptySubscribe,
     () => true,
     () => false
   );
 
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(initialOpen);
   const [messages, setMessages] = useState<ChatMessage[]>([INITIAL_GREETING]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);

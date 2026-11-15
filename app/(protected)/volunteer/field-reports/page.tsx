@@ -6,12 +6,11 @@ import { toast } from '@/components/ui/toast';
 import useAuth from '@/hooks/use-auth';
 import { axiosSecure } from '@/lib/api';
 import { ENDPOINTS } from '@/lib/endpoints';
-import EditProfileDrawer, {
-  UserProfileData,
-} from '@/components/profile/edit-profile-drawer';
+import EditProfileDrawer from '@/components/profile/edit-profile-drawer';
 import RouteReportForm from '@/components/volunteers/route-report-form';
 import ShortageReportForm from '@/components/volunteers/shortage-report-form';
 import DashboardFrame from '@/components/profile/dashboard-frame';
+import { useUserProfile } from '@/hooks/use-user-profile';
 import { getApiErrorMessage } from '@/utils/api-error';
 import {
   ReportSeverity,
@@ -23,7 +22,7 @@ import { LoadError } from '@/components/volunteers/operations-dashboard';
 const VolunteerFieldReportsPage = () => {
   const { user } = useAuth();
 
-  const [profile, setProfile] = useState<UserProfileData | null>(null);
+  const { profile, error: accountProfileError } = useUserProfile();
   const [loading, setLoading] = useState(true);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [togglingSafety, setTogglingSafety] = useState(false);
@@ -34,21 +33,10 @@ const VolunteerFieldReportsPage = () => {
 
   const fetchPageData = useCallback(async () => {
     try {
-      const [profileResult, volunteerResult] = await Promise.allSettled([
-        axiosSecure.get('/users/profile'),
+      const [volunteerResult] = await Promise.allSettled([
         axiosSecure.get(ENDPOINTS.VOLUNTEERS.ME),
       ]);
       setPageError('');
-      if (profileResult.status === 'fulfilled') {
-        const data = profileResult.value.data?.data || profileResult.value.data;
-        setProfile(data);
-      } else {
-        toast.add({
-          id: 'field-reports-profile-error',
-          title: 'Failed to load profile. Please try again.',
-          type: 'error',
-        });
-      }
       if (volunteerResult.status === 'fulfilled') {
         setVolunteerProfile(
           volunteerResult.value.data?.data ?? volunteerResult.value.data,
@@ -166,6 +154,7 @@ const VolunteerFieldReportsPage = () => {
         onEdit={() => setIsEditOpen(true)}
         onToggleSafety={handleToggleSafety}
       >
+        {accountProfileError && <p role="alert" className="text-sm text-destructive">{accountProfileError}</p>}
         <div className="space-y-6">
           <div>
             <h3 className="text-sm font-medium">Submit Field Intelligence</h3>

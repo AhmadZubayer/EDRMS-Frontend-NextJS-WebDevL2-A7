@@ -1,159 +1,17 @@
-'use client';
-
+import { Suspense } from 'react';
 import PageSkeleton from '@/components/page-skeleton';
-import ListPagination from '@/components/list-pagination';
-import { usePaginatedList } from '@/hooks/use-paginated-list';
-import { useUrlState } from '@/hooks/use-url-state';
-import dynamic from 'next/dynamic';
-import React, { useState, Suspense } from 'react';
-import { useRouter } from 'next/navigation';
-import { AlertCircle, Plus } from 'lucide-react';
-import Navbar from '@/components/navbar';
-import SearchBar from '@/components/searchbar';
-import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
-import useAuth from '@/hooks/use-auth';
-import RescueRequestCard from '@/components/rescue-requests/rescue-request-card';
-import { RescueRequest } from '@/components/rescue-requests/types';
-const RescueRequestDetailsDrawer = dynamic(() => import('@/components/rescue-requests/rescue-request-details-drawer'), { ssr: false });
-const AddRescueRequestDrawer = dynamic(() => import('@/components/rescue-requests/add-rescue-request-drawer'), { ssr: false });
+import { getPublicList, searchValue, type PageSearchParams } from '@/lib/server/public-data';
+import type { RescueRequest } from '@/components/rescue-requests/types';
+import ListClient from './client';
 
-const RescueRequestsPageContent = () => {
-  const router = useRouter();
-  const { user } = useAuth();
-  const [selectedRequest, setSelectedRequest] = useState<RescueRequest | null>(null);
-  const [editingRequest, setEditingRequest] = useState<RescueRequest | null>(null);
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [searchTerm, setUrlSearch] = useUrlState('q');
-  const { items: requests, loading, error, page, totalPages, setPage, refresh: fetchRescueRequests } =
-    usePaginatedList<RescueRequest>('/rescue-requests', { params: { searchTerm: searchTerm.trim() || undefined } });
-  const handleSearchChange = (val: string) => {
-    setUrlSearch(val);
-  };
+async function Results({ searchParams }: { searchParams: PageSearchParams }) {
+  const query = await searchParams;
+  const initialData = await getPublicList<RescueRequest>('/rescue-requests', {
+    searchTerm: searchValue(query.q).trim() || undefined,
+  });
+  return <ListClient initialData={initialData} />;
+}
 
-  const handleAddClick = () => {
-    if (user) {
-      setEditingRequest(null);
-      setIsDrawerOpen(true);
-    } else {
-      router.push('/sign-in?returnUrl=/rescue-requests');
-    }
-  };
-
-  const handleEdit = (request: RescueRequest) => {
-    setSelectedRequest(null);
-    setEditingRequest(request);
-    setIsDrawerOpen(true);
-  };
-
-  return (
-    <div className="min-h-screen flex flex-col bg-background">
-      <Navbar />
-
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-border pb-6">
-          <div>
-            <h1 className="text-3xl font-medium tracking-tight text-foreground">
-              Rescue Requests
-            </h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Report emergencies and coordinate real-time rescue operations.
-            </p>
-          </div>
-
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
-            <Button
-              onClick={handleAddClick}
-
-            >
-              <Plus className="size-4" />
-              Add Rescue Request
-            </Button>
-
-            <SearchBar
-              value={searchTerm}
-              onChange={handleSearchChange}
-              onSubmit={() => fetchRescueRequests()}
-              placeholder="Search by address, description..."
-            />
-          </div>
-        </div>
-
-        {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-        {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[1, 2, 3, 4, 5, 6].map((idx) => (
-              <div key={idx} className="p-4 rounded-lg border border-border bg-card space-y-3">
-                <div className="flex items-center justify-between">
-                  <Skeleton className="h-4 w-32" />
-                  <div className="flex gap-1.5">
-                    <Skeleton className="h-5 w-16" />
-                    <Skeleton className="h-5 w-16" />
-                  </div>
-                </div>
-                <Skeleton className="h-3.5 w-full" />
-                <Skeleton className="h-3.5 w-3/4" />
-                <div className="flex items-center justify-between pt-1">
-                  <Skeleton className="h-3 w-24" />
-                  <Skeleton className="h-3 w-20" />
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : requests.length === 0 ? (
-          <div className="flex flex-col items-center justify-center p-12 text-center rounded-lg border border-dashed border-border bg-muted/10 space-y-3">
-            <AlertCircle className="size-10 text-muted-foreground/60" />
-            <h3 className="text-sm font-medium">No rescue requests found</h3>
-            <p className="text-xs text-muted-foreground max-w-sm">
-              {searchTerm
-                ? 'Try adjusting your search term to find matching records.'
-                : 'There are currently no active rescue requests in the system.'}
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {requests.map((request) => (
-              <RescueRequestCard
-                key={request.id}
-                request={request}
-                onClick={() => router.push(`/rescue-requests/${request.id}`)}
-              />
-            ))}
-          </div>
-        )}
-        <ListPagination page={page} totalPages={totalPages} onChange={setPage} loading={loading} />
-      </main>
-
-      <RescueRequestDetailsDrawer
-        request={selectedRequest}
-        open={!!selectedRequest}
-        onOpenChange={(open) => {
-          if (!open) setSelectedRequest(null);
-        }}
-        onEdit={handleEdit}
-        onRefresh={() => fetchRescueRequests()}
-      />
-
-      <AddRescueRequestDrawer
-        open={isDrawerOpen}
-        onOpenChange={(open) => {
-          setIsDrawerOpen(open);
-          if (!open) setEditingRequest(null);
-        }}
-        onSuccess={() => {
-          fetchRescueRequests();
-          setEditingRequest(null);
-        }}
-        editRequest={editingRequest}
-      />
-    </div>
-  );
-};
-
-const RescueRequestsPage = () => (
-  <Suspense fallback={<PageSkeleton />}>
-    <RescueRequestsPageContent />
-  </Suspense>
-);
-
-export default RescueRequestsPage;
+export default function Page({ searchParams }: { searchParams: PageSearchParams }) {
+  return <Suspense fallback={<PageSkeleton />}><Results searchParams={searchParams} /></Suspense>;
+}

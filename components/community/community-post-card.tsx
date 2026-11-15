@@ -81,6 +81,7 @@ const CommunityPostCard = ({ post, onPostUpdated }: CommunityPostCardProps) => {
     if (!dateStr) return '';
     const d = new Date(dateStr);
     return d.toLocaleDateString('en-US', {
+      timeZone: 'Asia/Dhaka',
       month: 'short',
       day: 'numeric',
       hour: '2-digit',

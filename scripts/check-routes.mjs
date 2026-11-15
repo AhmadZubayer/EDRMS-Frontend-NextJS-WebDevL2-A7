@@ -4,9 +4,28 @@ import { fileURLToPath } from 'node:url';
 
 const projectRoot = fileURLToPath(new URL('../', import.meta.url));
 const appDirectory = path.join(projectRoot, 'app');
-const baseUrl = process.env.ROUTE_TEST_URL || 'http://localhost:3000';
 const baseUrl = process.env.ROUTE_TEST_URL || 'http://localhost:3001';
 const sampleId = process.env.ROUTE_TEST_ID || '00000000-0000-4000-8000-000000000000';
+const sampleIds = new Map();
+
+if (!process.env.ROUTE_TEST_ID) {
+  const endpoints = {
+    'missing-persons': '/missing-persons',
+    'rescue-requests': '/rescue-requests',
+    disaster: '/disasters',
+    donations: '/donations/campaigns',
+    community: '/community-posts',
+  };
+  await Promise.all(Object.entries(endpoints).map(async ([section, endpoint]) => {
+    const response = await fetch(new URL(`/api${endpoint}?limit=1`, baseUrl), {
+      signal: AbortSignal.timeout(15000),
+    });
+    if (response.ok) {
+      const body = await response.json();
+      if (body.data?.[0]?.id) sampleIds.set(section, body.data[0].id);
+    }
+  }));
+}
 
 const findRoutes = async (directory) => {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -20,10 +39,11 @@ const findRoutes = async (directory) => {
     } else if (entry.name === 'page.tsx') {
       const segments = path.relative(appDirectory, directory).split(path.sep);
       const routeSegments = segments
-        .filter((segment) => segment && !segment.startsWith('('))
-        .map((segment) => segment === '[id]' ? sampleId : segment);
+        .filter((segment) => segment && !segment.startsWith('('));
+      const id = sampleIds.get(routeSegments[0]) || sampleId;
+      const resolvedSegments = routeSegments.map((segment) => segment === '[id]' ? id : segment);
 
-      routes.push('/' + routeSegments.join('/'));
+      routes.push('/' + resolvedSegments.join('/'));
     }
   }
 
