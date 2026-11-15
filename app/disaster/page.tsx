@@ -1,6 +1,9 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import PageSkeleton from '@/components/page-skeleton';
+import { useUrlState } from '@/hooks/use-url-state';
+import dynamic from 'next/dynamic';
+import React, { useEffect, useState, useCallback, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { AlertTriangle, Plus } from 'lucide-react';
 import Navbar from '@/components/navbar';
@@ -11,22 +14,23 @@ import { publicApi } from '@/lib/api';
 import useAuth from '@/hooks/use-auth';
 import DisasterCard from '@/components/disaster/disaster-card';
 import { Disaster } from '@/components/disaster/types';
-import AddDisasterDrawer from '@/components/disaster/add-disaster-drawer';
+const AddDisasterDrawer = dynamic(() => import('@/components/disaster/add-disaster-drawer'), { ssr: false });
 
-const DisasterPage = () => {
+const DisasterPageContent = () => {
   const router = useRouter();
   const { user } = useAuth();
   const [disasters, setDisasters] = useState<Disaster[]>([]);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [urlSearch, setUrlSearch] = useUrlState('q');
+  const [searchTerm, setSearchTerm] = useState(urlSearch);
 
   const fetchDisasters = useCallback(async (search?: string) => {
     try {
       setLoading(true);
       const url = search?.trim()
-        ? `/disaster?search=${encodeURIComponent(search.trim())}`
-        : '/disaster';
+        ? `/disasters?search=${encodeURIComponent(search.trim())}`
+        : '/disasters';
       const res = await publicApi.get(url);
       const data = res.data?.data || res.data || [];
       setDisasters(Array.isArray(data) ? data : []);
@@ -38,11 +42,12 @@ const DisasterPage = () => {
   }, []);
 
   useEffect(() => {
-    fetchDisasters();
+    fetchDisasters(searchTerm);
   }, [fetchDisasters]);
 
   const handleSearchChange = (val: string) => {
     setSearchTerm(val);
+    setUrlSearch(val);
     fetchDisasters(val);
   };
 
@@ -137,5 +142,11 @@ const DisasterPage = () => {
     </div>
   );
 };
+
+const DisasterPage = () => (
+  <Suspense fallback={<PageSkeleton />}>
+    <DisasterPageContent />
+  </Suspense>
+);
 
 export default DisasterPage;
