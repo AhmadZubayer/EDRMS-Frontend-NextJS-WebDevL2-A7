@@ -43,7 +43,7 @@ const AddVolunteerGroupDrawer = ({
 
   const fetchDisasters = async () => {
     try {
-      const res = await publicApi.get('/disaster');
+      const res = await publicApi.get('/disasters');
       const data = res.data?.data || res.data || [];
       setDisasters(Array.isArray(data) ? data : []);
     } catch {

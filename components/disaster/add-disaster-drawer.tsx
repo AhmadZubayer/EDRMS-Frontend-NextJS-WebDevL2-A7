@@ -150,7 +150,7 @@ const AddDisasterDrawer = ({
       };
 
       if (editDisaster) {
-        await axiosSecure.patch(`/disaster/${editDisaster.id}`, payload);
+        await axiosSecure.patch(`/disasters/${editDisaster.id}`, payload);
         toast.add({
           id: 'disaster-alert-updated',
           title: 'Disaster alert updated successfully!',
@@ -158,7 +158,7 @@ const AddDisasterDrawer = ({
           timeout: 4000,
         });
       } else {
-        await axiosSecure.post('/disaster', payload);
+        await axiosSecure.post('/disasters', payload);
         toast.add({
           id: 'disaster-alert-created',
           title: 'Disaster alert published successfully!',

@@ -147,7 +147,7 @@ const ReliefOrgSignUpForm = () => {
         formData.append('verification_docs', file);
       });
 
-      await axiosSecure.post('/relief-org/sign-up-as-relief-org', formData, {
+      await axiosSecure.post('/relief-orgs/sign-up', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
