@@ -1,0 +1,232 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { User } from 'lucide-react';
+import { toast } from '@/components/ui/toast';
+import useAuth from '@/hooks/use-auth';
+import { axiosSecure } from '@/lib/api';
+import MuiDrawer from '@/components/mui-drawer';
+import { MissingPerson } from '@/components/missing-persons/missing-person-dialog';
+
+interface MissingPersonDetailsDrawerProps {
+  person: MissingPerson | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onEdit: (person: MissingPerson) => void;
+  onRefresh: () => void;
+}
+
+const MissingPersonDetailsDrawer = ({
+  person,
+  open,
+  onOpenChange,
+  onEdit,
+  onRefresh,
+}: MissingPersonDetailsDrawerProps) => {
+  const { user } = useAuth();
+  const [cachedPerson, setCachedPerson] = useState<MissingPerson | null>(person);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [actionError, setActionError] = useState('');
+
+  useEffect(() => {
+    if (person) {
+      setCachedPerson(person);
+    }
+  }, [person]);
+
+  const displayPerson = person || cachedPerson;
+  if (!displayPerson) return null;
+
+  const isOwner = !!(user && (user.id === displayPerson.reporter_id || user.role === 'ADMIN'));
+  const isFound = displayPerson.status?.toUpperCase() === 'FOUND';
+
+  const handleMarkAsFound = async () => {
+    try {
+      setActionLoading(true);
+      setActionError('');
+      await axiosSecure.patch(`/missing-persons/${displayPerson.id}/status`, {
+        status: 'FOUND',
+      });
+      toast.add({
+        id: 'missing-person-found',
+        title: 'Report status updated to Found.',
+        type: 'success',
+        timeout: 4000,
+      });
+      onRefresh();
+      onOpenChange(false);
+    } catch (err: any) {
+      setActionError(err.response?.data?.message || 'Failed to update status.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!window.confirm('Are you sure you want to delete this report?')) return;
+    try {
+      setActionLoading(true);
+      setActionError('');
+      await axiosSecure.delete(`/missing-persons/${displayPerson.id}`);
+      toast.add({
+        id: 'missing-person-deleted',
+        title: 'Missing person report moved to trash.',
+        type: 'success',
+        timeout: 4000,
+      });
+      onRefresh();
+      onOpenChange(false);
+    } catch (err: any) {
+      setActionError(err.response?.data?.message || 'Failed to delete report.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  return (
+    <MuiDrawer
+      open={open}
+      onClose={() => onOpenChange(false)}
+      title="Report Details"
+      subtitle="Detailed missing person report information"
+      width={460}
+    >
+      <div className="flex-1 overflow-y-auto p-5 space-y-5">
+        <div className="relative aspect-video w-full rounded-lg bg-muted overflow-hidden border border-border flex items-center justify-center">
+          {displayPerson.photo_url ? (
+            <img
+              src={displayPerson.photo_url}
+              alt={displayPerson.full_name}
+              className="size-full object-cover"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+              }}
+            />
+          ) : (
+            <User className="size-16 text-muted-foreground" />
+          )}
+          <div className="absolute top-3 right-3">
+            <Badge
+              variant={isFound ? 'default' : 'destructive'}
+              className="uppercase"
+            >
+              {displayPerson.status}
+            </Badge>
+          </div>
+        </div>
+
+        <div>
+          <h2 className="text-sm font-medium tracking-tight text-foreground">
+            {displayPerson.full_name}
+          </h2>
+        </div>
+
+        <div className="grid grid-cols-2 gap-x-6 gap-y-4 pt-1">
+          <div className="space-y-0.5">
+            <span className="text-xs font-medium tracking-wider text-muted-foreground uppercase block">
+              GENDER
+            </span>
+            <span className="text-sm font-medium text-foreground lowercase block">
+              {displayPerson.gender}
+            </span>
+          </div>
+
+          <div className="space-y-0.5">
+            <span className="text-xs font-medium tracking-wider text-muted-foreground uppercase block">
+              AGE
+            </span>
+            <span className="text-sm font-medium text-foreground block">
+              {displayPerson.age} years old
+            </span>
+          </div>
+
+          <div className="space-y-0.5">
+            <span className="text-xs font-medium tracking-wider text-muted-foreground uppercase block">
+              LAST SEEN LOCATION
+            </span>
+            <span className="text-sm font-medium text-foreground block">
+              {displayPerson.last_seen_location}
+            </span>
+          </div>
+
+          <div className="space-y-0.5">
+            <span className="text-xs font-medium tracking-wider text-muted-foreground uppercase block">
+              LAST SEEN DATE
+            </span>
+            <span className="text-sm font-medium text-foreground block">
+              {displayPerson.last_seen_date}
+            </span>
+          </div>
+        </div>
+
+        <div className="space-y-1 pt-1">
+          <span className="text-xs font-medium tracking-wider text-muted-foreground uppercase block">
+            DESCRIPTION
+          </span>
+          <p className="text-xs text-foreground leading-relaxed whitespace-pre-wrap">
+            {displayPerson.description || 'No additional description provided.'}
+          </p>
+        </div>
+
+        {actionError && (
+          <div className="p-3 text-xs text-red-600 rounded-lg bg-red-50 border border-red-200 text-center">
+            {actionError}
+          </div>
+        )}
+      </div>
+
+      <div className="p-4 border-t border-border bg-background shrink-0">
+        {isOwner ? (
+          <div className="flex items-center gap-2">
+            {!isFound && (
+              <Button
+                variant="outline"
+                onClick={handleMarkAsFound}
+                disabled={actionLoading}
+                className="flex-1"
+              >
+                Mark as Found
+              </Button>
+            )}
+            <Button
+              variant="secondary"
+              onClick={() => onEdit(displayPerson)}
+              disabled={actionLoading}
+              className="flex-1"
+            >
+              Edit
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={actionLoading}
+              className="flex-1"
+            >
+              Delete
+            </Button>
+          </div>
+        ) : user ? (
+          <Button
+            className="w-full"
+            render={<a href={`tel:${displayPerson.contact_phone}`} />}
+          >
+            Contact Informer ({displayPerson.contact_phone})
+          </Button>
+        ) : (
+          <Button
+            variant="outline"
+            className="w-full"
+            render={<Link href="/sign-in" />}
+          >
+            Sign in to contact informer
+          </Button>
+        )}
+      </div>
+    </MuiDrawer>
+  );
+};
+
+export default MissingPersonDetailsDrawer;
