@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, Suspense } from 'react';
+import React, { useEffect, useRef, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { CheckCircle2, ArrowRight, Download } from 'lucide-react';
@@ -16,6 +16,10 @@ const PaymentSuccessContent = () => {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get('session_id');
   const txId = searchParams.get('tx_id');
+  const provider = searchParams.get('provider');
+  const paymentRef = sessionId || searchParams.get('ref');
+  const autoDownloadedRef = useRef(false);
+  const [notice, setNotice] = useState('');
   const [loading, setLoading] = useState(true);
   const [receiptData, setReceiptData] = useState<any>(null);
   const [downloading, setDownloading] = useState(false);
@@ -35,7 +39,7 @@ const PaymentSuccessContent = () => {
         receivedFrom: data.donor_name || (data.is_anonymous ? 'Anonymous Donor' : 'Valued Donor'),
         contact: data.donor_contact || (data.is_anonymous ? 'Anonymous' : 'N/A'),
         donationAmount: Number(data.amount || 0),
-        paymentMethod: data.payment_gateway || 'STRIPE',
+        paymentMethod: data.payment_gateway || (provider === 'bkash' ? 'BKASH' : 'STRIPE'),
         transactionId: data.transaction_id || txId || 'N/A',
         campaignTitle: data.campaign_title || 'Emergency Relief Fund',
         reliefOrg: data.relief_org || 'Emergency Disaster Response Management System',
@@ -47,30 +51,58 @@ const PaymentSuccessContent = () => {
   };
 
   useEffect(() => {
-    const verifyPayment = async () => {
-      try {
-        if (sessionId && txId) {
-          const res = await publicApi.get(`/donations/payment/success?session_id=${sessionId}&tx_id=${txId}`);
-          const payload = res.data?.data || res.data;
-          setReceiptData(payload);
+    let cancelled = false;
 
-          toast.add({
-            title: 'Thank you for your contribution to the mankind.',
-            type: 'success',
-            timeout: 10000,
-            actionProps: {
-              children: 'Download Receipt',
-              onClick: () => handleDownload(payload),
-            },
-          });
-        }
-      } catch {
-      } finally {
+    const verifyPayment = async () => {
+      if (!paymentRef) {
         setLoading(false);
+        return;
+      }
+
+      let payload: any = null;
+      for (let attempt = 0; attempt < 8 && !cancelled; attempt++) {
+        try {
+          const res = await publicApi.get('/payments/receipt', { params: { ref: paymentRef } });
+          payload = res.data?.data || res.data;
+          if (payload?.status === 'COMPLETED') break;
+        } catch {
+          payload = null;
+        }
+        await new Promise((r) => setTimeout(r, 2000));
+      }
+
+      if (cancelled) return;
+      setLoading(false);
+
+      if (!payload) {
+        setNotice('We could not load your receipt yet. Please try again shortly.');
+        return;
+      }
+
+      setReceiptData(payload);
+
+      if (payload.status !== 'COMPLETED') {
+        setNotice('Your payment is still being confirmed. You can download the receipt once it completes.');
+        return;
+      }
+
+      if (!autoDownloadedRef.current) {
+        autoDownloadedRef.current = true;
+        await handleDownload(payload);
+        toast.add({
+          title: 'Thank you for your contribution to the mankind.',
+          description: 'Your donation receipt has been downloaded.',
+          type: 'success',
+          timeout: 8000,
+        });
       }
     };
+
     verifyPayment();
-  }, [sessionId, txId]);
+    return () => {
+      cancelled = true;
+    };
+  }, [paymentRef]);
 
   return (
     <div className="flex flex-col items-center justify-center p-4 text-center max-w-md mx-auto my-16 bg-card border border-border rounded-lg space-y-4">
@@ -81,19 +113,21 @@ const PaymentSuccessContent = () => {
         Thank You for Your Donation!
       </h1>
       <p className="text-xs text-muted-foreground leading-relaxed">
-        Your payment has been successfully processed through Stripe. Reference ID: <span className="font-mono font-medium">{txId || 'N/A'}</span>.
+        Your payment has been successfully processed through {provider === 'bkash' ? 'bKash' : 'Stripe'}. Reference ID: <span className="font-mono font-medium break-all">{receiptData?.transaction_id || txId || 'N/A'}</span>.
       </p>
 
       {loading ? (
         <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground py-2">
           <Spinner className="size-4" />
-          <span>Verifying transaction...</span>
+          <span>Verifying transaction and preparing your receipt...</span>
         </div>
       ) : (
+        <>
+        {notice && <p className="text-xs text-amber-600">{notice}</p>}
         <div className="pt-2 flex flex-col sm:flex-row items-center gap-3 w-full justify-center">
           <Button
             onClick={() => handleDownload()}
-            disabled={downloading}
+            disabled={downloading || !receiptData}
             className="w-full sm:w-auto"
           >
             {downloading ? <Spinner className="size-4" /> : <Download className="size-4" />}
@@ -108,6 +142,7 @@ const PaymentSuccessContent = () => {
             <ArrowRight className="size-4" />
           </Button>
         </div>
+        </>
       )}
     </div>
   );
