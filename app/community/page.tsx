@@ -1,6 +1,9 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import PageSkeleton from '@/components/page-skeleton';
+import { useUrlState } from '@/hooks/use-url-state';
+import dynamic from 'next/dynamic';
+import React, { useEffect, useState, useCallback, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, MessageSquarePlus } from 'lucide-react';
 import Navbar from '@/components/navbar';
@@ -18,16 +21,18 @@ import useAuth from '@/hooks/use-auth';
 import { publicApi } from '@/lib/api';
 import { CommunityPost } from '@/components/community/types';
 import CommunityPostCard from '@/components/community/community-post-card';
-import AddCommunityPostDrawer from '@/components/community/add-community-post-drawer';
+const AddCommunityPostDrawer = dynamic(() => import('@/components/community/add-community-post-drawer'), { ssr: false });
 
-const CommunityPage = () => {
+const CommunityPageContent = () => {
   const router = useRouter();
   const { user } = useAuth();
 
   const [posts, setPosts] = useState<CommunityPost[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [sortOption, setSortOption] = useState('desc');
+  const [urlSearch, setUrlSearch] = useUrlState('q');
+  const [urlSort, setUrlSort] = useUrlState('sort', 'desc');
+  const [searchQuery, setSearchQuery] = useState(urlSearch);
+  const [sortOption, setSortOption] = useState(urlSort);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   const fetchPosts = useCallback(async (search?: string, sortVal: string = 'desc') => {
@@ -86,12 +91,14 @@ const CommunityPage = () => {
 
   const handleSearchChange = (val: string) => {
     setSearchQuery(val);
+    setUrlSearch(val);
     fetchPosts(val, sortOption);
   };
 
   const handleSortChange = (val: string | null) => {
     if (!val) return;
     setSortOption(val);
+    setUrlSort(val);
   };
 
   const handleOpenDrawer = () => {
@@ -213,5 +220,11 @@ const CommunityPage = () => {
     </div>
   );
 };
+
+const CommunityPage = () => (
+  <Suspense fallback={<PageSkeleton />}>
+    <CommunityPageContent />
+  </Suspense>
+);
 
 export default CommunityPage;
