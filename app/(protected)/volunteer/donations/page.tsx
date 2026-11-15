@@ -9,7 +9,7 @@ import { toast } from '@/components/ui/toast';
 import useAuth from '@/hooks/use-auth';
 import { axiosSecure } from '@/lib/api';
 import EditProfileDrawer, { UserProfileData } from '@/components/profile/edit-profile-drawer';
-import { generateDonationReceipt } from '@/utils/generate-donation-receipt';
+import { generateDonationReceipt } from '@/utils/lazy-donation-receipt';
 import DashboardFrame from '@/components/profile/dashboard-frame';
 import { getApiErrorMessage } from '@/utils/api-error';
 interface UserDonation {

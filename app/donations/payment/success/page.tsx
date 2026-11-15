@@ -10,7 +10,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from '@/components/ui/toast';
 import { publicApi } from '@/lib/api';
-import { generateDonationReceipt } from '@/utils/generate-donation-receipt';
+import { generateDonationReceipt } from '@/utils/lazy-donation-receipt';
 
 const PaymentSuccessContent = () => {
   const searchParams = useSearchParams();
