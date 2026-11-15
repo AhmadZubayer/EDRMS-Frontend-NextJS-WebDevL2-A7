@@ -1,6 +1,9 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import PageSkeleton from '@/components/page-skeleton';
+import { useUrlState } from '@/hooks/use-url-state';
+import dynamic from 'next/dynamic';
+import React, { useEffect, useState, useCallback, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { AlertCircle, Plus } from 'lucide-react';
 import Navbar from '@/components/navbar';
@@ -11,10 +14,10 @@ import { publicApi } from '@/lib/api';
 import useAuth from '@/hooks/use-auth';
 import SleekCard from '@/components/sleekCard';
 import { MissingPerson } from '@/components/missing-persons/missing-person-dialog';
-import MissingPersonDetailsDrawer from '@/components/missing-persons/missing-person-details-drawer';
-import AddMissingPersonDrawer from '@/components/missing-persons/add-missing-person-drawer';
+const MissingPersonDetailsDrawer = dynamic(() => import('@/components/missing-persons/missing-person-details-drawer'), { ssr: false });
+const AddMissingPersonDrawer = dynamic(() => import('@/components/missing-persons/add-missing-person-drawer'), { ssr: false });
 
-const MissingPersonsPage = () => {
+const MissingPersonsPageContent = () => {
   const router = useRouter();
   const { user } = useAuth();
   const [persons, setPersons] = useState<MissingPerson[]>([]);
@@ -22,7 +25,8 @@ const MissingPersonsPage = () => {
   const [editingPerson, setEditingPerson] = useState<MissingPerson | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [urlSearch, setUrlSearch] = useUrlState('q');
+  const [searchTerm, setSearchTerm] = useState(urlSearch);
 
   const fetchMissingPersons = useCallback(async (search?: string) => {
     try {
@@ -41,11 +45,12 @@ const MissingPersonsPage = () => {
   }, []);
 
   useEffect(() => {
-    fetchMissingPersons();
+    fetchMissingPersons(searchTerm);
   }, [fetchMissingPersons]);
 
   const handleSearchChange = (val: string) => {
     setSearchTerm(val);
+    setUrlSearch(val);
     fetchMissingPersons(val);
   };
 
@@ -165,5 +170,11 @@ const MissingPersonsPage = () => {
     </div>
   );
 };
+
+const MissingPersonsPage = () => (
+  <Suspense fallback={<PageSkeleton />}>
+    <MissingPersonsPageContent />
+  </Suspense>
+);
 
 export default MissingPersonsPage;
