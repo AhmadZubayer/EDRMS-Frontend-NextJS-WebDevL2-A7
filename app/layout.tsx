@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
-import { Geist_Mono, Google_Sans } from 'next/font/google';
+import { Geist, Geist_Mono } from 'next/font/google';
 import { AppRouterCacheProvider } from '@mui/material-nextjs/v16-appRouter';
 
 import { AuthProvider } from '@/contexts/auth-provider';
@@ -12,8 +12,8 @@ import { Toaster } from '@/components/ui/toast';
 import { TooltipProvider } from '@/components/ui/tooltip';
 
 import './globals.css';
-const googleSans = Google_Sans({
-  variable: '--font-google-sans',
+const geist = Geist({
+  variable: '--font-geist-sans',
   subsets: ['latin'],
   display: 'swap',
   adjustFontFallback: false,
@@ -38,7 +38,7 @@ const RootLayout = ({
   return (
     <html
       lang="en"
-      className={`${googleSans.variable} ${geistMono.variable} h-full font-sans antialiased`}
+      className={`${geist.variable} ${geistMono.variable} h-full font-sans antialiased`}
     >
       <body className="min-h-full">
         <AppRouterCacheProvider>

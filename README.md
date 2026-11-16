@@ -58,7 +58,7 @@ Admins manage all accounts and verify or approve public warnings, posts, volunte
 
 ### Implementation Highlights
 
-* Modern design, mobile responsiveness, and consistent theming [responsive public directories, dashboard layouts and sidebars, shared Tailwind theme tokens in `app/globals.css`, and global Google Sans typography through `app/layout.tsx` and `components/font-provider.tsx`].
+* Modern design, mobile responsiveness, and consistent theming [responsive public directories, dashboard layouts and sidebars, shared Tailwind theme tokens in `app/globals.css`, and global Geist typography through `app/layout.tsx` and `components/font-provider.tsx`].
 * Accessibility features [labelled search and navigation buttons, `aria-invalid` and `aria-describedby` on form fields, keyboard focus styles, and labelled MUI pagination in shared components].
 * Server/Client component split [server-rendered public list/detail `page.tsx` files and interactive `client.tsx` components in missing persons, rescue requests, disasters, donations, and community].
 * App Router features, shared layouts, and error boundaries [dynamic `[id]` routes, root/auth/protected/admin layouts, `app/loading.tsx`, `app/error.tsx`, and `app/not-found.tsx`].

@@ -5,7 +5,7 @@ import { createTheme, ThemeProvider } from '@mui/material/styles';
 
 const theme = createTheme({
   typography: {
-    fontFamily: 'var(--font-google-sans), Arial, sans-serif',
+    fontFamily: 'var(--font-geist-sans), Arial, sans-serif',
   },
 });
 
